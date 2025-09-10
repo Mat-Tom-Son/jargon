@@ -55,6 +55,24 @@ export const API_CONFIG = {
   }
 };
 
+// 🔥 DEMO: Uncomment to switch to JSONPlaceholder for real data testing
+// export const API_CONFIG = {
+//   baseUrl: 'https://jsonplaceholder.typicode.com',
+//   endpoints: {
+//     health: '/',  // Root endpoint for health check
+//     terms: '/posts',     // Maps blog posts to business terms
+//     sources: '/users',   // Maps users to data sources
+//     rules: '/comments',  // Maps comments to rules
+//     semanticDebt: {
+//       metrics: '/posts/1',    // Single post for metrics demo
+//       assess: '/posts',       // Posts endpoint for assessment
+//       dashboard: '/posts'     // Posts for dashboard data
+//     },
+//     context: '/posts',
+//     execute: '/posts'
+//   }
+// };
+
 // 🎯 QUICK API SWITCHING EXAMPLES:
 // ================================
 

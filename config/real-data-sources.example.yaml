@@ -1,0 +1,31 @@
+# Real Data Sources Configuration Example
+# Copy this to your environment variables or config file
+
+# Salesforce Configuration
+salesforce:
+  instanceUrl: "https://your-org.salesforce.com"
+  accessToken: "your-access-token-here"
+  # Get these from Salesforce Connected App setup
+
+# REST API Configuration
+restApi:
+  baseUrl: "https://your-api.com/api/v1"
+  headers:
+    Authorization: "Bearer your-token-here"
+    Content-Type: "application/json"
+
+# PostgreSQL Configuration
+database:
+  host: "localhost"
+  port: 5432
+  database: "your_database"
+  username: "your_username"
+  password: "your_password"
+
+# Example Environment Variables for .env file:
+#
+# SALESFORCE_INSTANCE_URL=https://your-org.salesforce.com
+# SALESFORCE_ACCESS_TOKEN=your-access-token-here
+# REST_API_BASE_URL=https://your-api.com/api/v1
+# DATABASE_URL=postgresql://user:password@localhost:5432/jargon
+# OPA_URL=http://localhost:8181/v1/data/translation/allow

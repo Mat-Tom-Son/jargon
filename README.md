@@ -1,521 +1,339 @@
-# 🔄 Translation Layer: Semantic Debt Management for Enterprise AI
+# Jargon - Unified API Layer for Business Data
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/your-username/jargon)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Mat-Tom-Son/jargon)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-14+-000000)](https://nextjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-BSL%201.1-blue.svg)](LICENSE)
 
-> **Enterprise-grade semantic debt management** - Transform unclear business terminology into reliable, trustworthy AI systems.
+> **Stop integrating with every API separately.** Get a unified, semantic-aware layer over all your business systems.
 
-A comprehensive platform that addresses the **semantic debt crisis** in enterprise AI systems. This project provides a unified, safe, and org-aware API surface over heterogeneous data sources while measuring and managing semantic debt - the hidden cost of unclear business terminology.
+Jargon consolidates your scattered business APIs (Salesforce, PostgreSQL, REST endpoints) into one clean interface with consistent terminology. Instead of building custom integrations for every chatbot or analytics tool, connect once and get normalized, governed data.
 
-## 📋 Table of Contents
+## The Problem
 
-- [🎯 What is Semantic Debt?](#-what-is-semantic-debt)
-- [🚀 What This Platform Solves](#-what-this-platform-solves)
-- [🏗️ Architecture](#️-architecture)
-- [📁 Project Structure](#-project-structure)
-- [🛠️ Quick Start](#️-quick-start)
-- [🎮 Key Features Demo](#-key-features-demo)
-- [📊 Semantic Debt Metrics](#-semantic-debt-metrics)
-- [🔧 API Reference](#-api-reference)
-- [🚀 Production Deployment](#-production-deployment)
-- [🧪 Development](#-development)
-- [📈 Roadmap](#-roadmap)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
-- [🙏 Acknowledgments](#-acknowledgments)
+Your business data lives everywhere:
+- Customer data in Salesforce with nested objects and weird field names
+- Financial data in PostgreSQL with different column formats  
+- Product data from REST APIs with inconsistent response structures
+- Each system calls the same concept different things ("customer" vs "account" vs "contact")
 
-## 🎯 **What is Semantic Debt?**
+Every AI tool or chatbot needs custom integration code, authentication handling, and data normalization. Teams waste time building the same connectors over and over.
 
-Semantic debt is the real bill every enterprise pays for unclear business terminology. It shows up as:
-- **Extra wrangling** - Manual Excel hacks and Slack threads
-- **Producer rework** - Schema patches and pipeline triage
-- **Trust erosion** - When nobody believes the numbers anymore
+## The Solution
 
-## 🚀 **What This Platform Solves**
+**One API to rule them all.** Jargon provides:
 
-### **1. Semantic Translation Layer**
-- **Business Terms → Data Queries**: Translates "Active Customer" into concrete SQL/Salesforce/REST queries
-- **Multi-Source Federation**: Query across Salesforce, PostgreSQL, and REST APIs simultaneously
-- **Policy Enforcement**: OPA-powered access control with field-level permissions
-- **Complete Lineage**: Every answer shows its source, filters, and transformation history
+- **Unified Data Access**: Query Salesforce, PostgreSQL, and REST APIs through a single endpoint
+- **Consistent Output**: All responses use the same JSON schema regardless of source
+- **Semantic Definitions**: Define what "active_customer" means once, use it everywhere
+- **AI-Ready**: Clean, normalized data perfect for LLM context and chatbot integration
+- **Semantic Debt Tracking**: Monitor and reduce the hidden costs of unclear terminology
 
-### **2. Semantic Debt Assessment**
-- **Real-Time Metrics**: Term coverage (65%), lineage completeness (78%), wrangling efficiency
-- **ROI Quantification**: Calculates $45K monthly waste from semantic debt
-- **Drift Detection**: Monitors when data sources change and break semantic contracts
-- **Priority Recommendations**: Actionable steps to reduce semantic debt by 50%+
+## Quick Start
 
-### **3. Enterprise Governance**
-- **Term Lifecycle Management**: Draft → Review → Approval workflows
-- **Data Stewardship**: Assign owners and review cycles for business terms
-- **Compliance Tracking**: Monitor governance adherence and review completion
-- **Approval Workflows**: Multi-step governance for semantic contract changes
+```bash
+git clone https://github.com/Mat-Tom-Son/jargon.git
+cd jargon
+npm install
 
-## 🏗️ **Architecture Overview**
+# Start the API server
+node simple-gateway.js
 
-### **Core Architecture**
-
-```mermaid
-graph TB
-    A[🔄 Frontend Layer<br/>Next.js + React + Shadcn/UI] --> B[⚡ Translation Engine<br/>TypeScript + Query Planning]
-    B --> C[📊 Data Connectors<br/>Salesforce + PostgreSQL + REST]
-    B --> D[🛡️ Policy Engine<br/>Open Policy Agent]
-    B --> E[📈 Semantic Debt<br/>Assessment Engine]
-
-    F[👥 Governance Layer<br/>Approval Workflows] --> B
-    G[🔍 Registry Layer<br/>Business Terms + Mappings] --> B
-
-    style A fill:#e1f5fe
-    style B fill:#fff3e0
-    style C fill:#f3e5f5
-    style D fill:#e8f5e8
-    style E fill:#fff8e1
-    style F fill:#fce4ec
-    style G fill:#f1f8e9
+# Start the admin interface
+cd frontend && npm run dev
 ```
 
-### **Technology Stack**
+Visit `http://localhost:3000` for the admin interface and `http://localhost:3001` for API access.
 
-| **Layer** | **Technology** | **Purpose** |
-|-----------|----------------|-------------|
-| **Frontend** | Next.js 14, React 18, TypeScript | Modern web application with type safety |
-| **UI Framework** | Shadcn/UI, Tailwind CSS | Professional design system and styling |
-| **Backend** | Node.js, Express | REST API gateway and orchestration |
-| **Connectors** | REST, GraphQL, SQL, Salesforce | Multi-source data integration |
-| **Policy** | Open Policy Agent (OPA) | Fine-grained access control |
-| **Registry** | PostgreSQL, Memory Store | Metadata and business term storage |
-| **Assessment** | Custom Algorithms | Semantic debt calculation and monitoring |
+## How It Works
 
-### **Data Flow Architecture**
+### 1. Connect Your Data Sources
+
+```javascript
+// Configure once
+const sources = {
+  salesforce: {
+    instanceUrl: "https://yourorg.salesforce.com",
+    accessToken: "your-token"
+  },
+  database: {
+    connectionString: "postgresql://..."
+  },
+  api: {
+    baseUrl: "https://api.yourcompany.com",
+    headers: { "Authorization": "Bearer token" }
+  }
+}
+```
+
+### 2. Define Business Terms
+
+```json
+{
+  "active_customer": {
+    "definition": "Customer with activity in last 90 days",
+    "sources": {
+      "salesforce": "SELECT Id, Name FROM Account WHERE LastActivityDate > :90_days_ago",
+      "database": "SELECT customer_id, name FROM customers WHERE last_login > NOW() - INTERVAL '90 days'"
+    }
+  }
+}
+```
+
+### 3. Query Everything Uniformly
+
+```javascript
+// Same API call regardless of data source
+const response = await fetch('/api/execute', {
+  method: 'POST',
+  body: JSON.stringify({
+    term: "active_customer",
+    filters: { region: "North America" }
+  })
+});
+
+// Always get the same response format
+const data = await response.json();
+console.log(data.results); // Consistent structure every time
+```
+
+### 4. Perfect for AI Integration
+
+```javascript
+// Your chatbot gets clean, consistent data
+const context = await jargon.query("active_customers_by_region");
+const prompt = `Based on this data: ${JSON.stringify(context)}, answer the user's question about customers.`;
+```
+
+## Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Business User  │────│  Translation    │────│  Data Sources   │
-│  Query Intent   │    │  Engine Core    │    │  (Salesforce,   │
-│                 │    │                 │    │   PostgreSQL,   │
-│ "Active Customer│    │ • Parse Intent  │    │   REST APIs)    │
-│  in North America"│  │ • Map to Terms  │    │                 │
-└─────────────────┘    │ • Generate SQL  │    └─────────────────┘
-                       │ • Enforce Policy│
-                       └─────────────────┘
-                                │
-                                ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Query Results  │◄───│  Lineage &     │◄───│  Governance     │
-│  with Full      │    │  Provenance    │    │  Approval       │
-│  Traceability   │    │                 │    │  Workflows      │
+│   Your Apps     │────│     Jargon      │────│  Data Sources   │
+│                 │    │                 │    │                 │
+│ • Chatbots      │    │ • Query Parser  │    │ • Salesforce    │
+│ • Dashboards    │    │ • Data Mapper   │    │ • PostgreSQL    │
+│ • Analytics     │    │ • Result Cache  │    │ • REST APIs     │
+│ • Custom Tools  │    │ • Access Control│    │ • More...       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 📁 **Project Structure**
+## Key Features
 
-```
-jargon/
-├── frontend/           # Sophisticated Next.js admin UI
-│   ├── app/           # Next.js 14 app router
-│   ├── components/    # Reusable UI components
-│   └── styles/        # Global styles and themes
-├── packages/          # Core business logic packages
-│   ├── core/          # Translation engine & types
-│   ├── connectors/    # Data source connectors
-│   ├── semantic-debt/ # Debt assessment & governance
-│   ├── policy/        # OPA policy enforcement
-│   └── registry/      # Data persistence layer
-├── apps/
-│   ├── gateway/       # REST API gateway
-│   └── graphql-gateway/ # GraphQL API (optional)
-├── mock-server.js     # Development API server
-├── mock-server-README.md # Mock server documentation
-└── README.md          # This file
-```
-
-## 🛠️ **Quick Start**
-
-Get up and running in under 5 minutes! 🚀
-
-### **Prerequisites**
-
-| Requirement | Version | Purpose |
-|-------------|---------|---------|
-| **Node.js** | 18+ | Runtime environment |
-| **pnpm** | Latest | Package manager (recommended) |
-| **npm** | 8+ | Alternative package manager |
-| **PostgreSQL** | 13+ | Production registry (optional) |
-
-### **Installation Steps**
-
-#### **Step 1: Clone and Install**
-```bash
-# Clone the repository
-git clone https://github.com/your-username/jargon.git
-cd jargon
-
-# Install dependencies
-pnpm install
-```
-
-#### **Step 2: Start the API Server**
-
-Choose your preferred option:
-
-##### **🚀 Option A: Simple Gateway (Recommended)**
-```bash
-# Quick standalone setup
-node simple-gateway.js
-```
-✅ **Best for:** First-time setup, demos, development
-✅ **Features:** Complete API simulation, all endpoints, no dependencies
-
-##### **⚡ Option B: Mock Server (Minimal)**
-```bash
-# Ultra-minimal setup
-node mock-server.js
-```
-✅ **Best for:** Testing, CI/CD, minimal resource usage
-
-##### **🔧 Option C: Full Translation Layer (Advanced)**
-```bash
-# Complete TypeScript implementation
-pnpm run --filter=apps/gateway dev
-```
-✅ **Best for:** Production development, full feature testing
-
-#### **Step 3: Start the Frontend**
-```bash
-# In a new terminal
-cd frontend
-pnpm dev
-```
-
-#### **Step 4: Access the Application**
-```
-🌐 Frontend: http://localhost:3000
-🔌 API:      http://localhost:3001
-```
-
-### **🚨 Troubleshooting**
-
-| Issue | Solution |
-|-------|----------|
-| **Port 3000/3001 already in use** | `lsof -ti:3000 \| xargs kill -9` |
-| **pnpm not found** | `npm install -g pnpm` |
-| **Node version too old** | Use nvm: `nvm use 18` |
-| **Dependencies fail to install** | `rm -rf node_modules && pnpm install` |
-| **Frontend won't start** | Check if API server is running on port 3001 |
-
-### **✅ Verification**
-```bash
-# Test API server
-curl http://localhost:3001/health
-
-# Test frontend
-curl http://localhost:3000
-```
-
-## 🎮 **Key Features Demo**
-
-### **📊 Dashboard Overview**
-> Real-time semantic debt monitoring and system health at a glance
+### Dashboard Overview
+Real-time monitoring and system health at a glance
 
 ![Dashboard Overview](./docs/screenshots/dashboard-overview.png)
 
-- **🔴 Semantic Debt Score**: Live health metrics with trend analysis
-- **🟢 Data Source Status**: Connected systems health and uptime monitoring
-- **📈 Recent Activity**: Latest mappings, approvals, and system events
-- **⚡ Quick Actions**: One-click access to critical workflows
+- **System Status**: Live health metrics and uptime monitoring
+- **Recent Activity**: Latest mappings, approvals, and system events
+- **Quick Actions**: One-click access to critical workflows
 
-### **💰 Semantic Debt Assessment (`/semantic-debt`)**
-> Quantify the hidden costs of unclear terminology
-
-![Semantic Debt Dashboard](./docs/screenshots/semantic-debt-dashboard.png)
-
-- **📊 Overall Health Score**: 72% with detailed component breakdowns
-- **💵 ROI Calculator**: $45K monthly waste identification and savings projections
-- **🎯 Priority Recommendations**: AI-powered improvement suggestions
-- **📉 Progress Tracking**: Visual metrics with historical trend indicators
-
-### **👑 Governance Dashboard (`/governance`)**
-> Enterprise-grade approval workflows and compliance tracking
-
-![Governance Dashboard](./docs/screenshots/governance-dashboard.png)
-
-- **🔄 Term Lifecycle Management**: Draft → Review → Approved state machine
-- **📋 Approval Workflows**: Multi-step governance with role-based access
-- **✅ Compliance Metrics**: Review completion rates and stewardship tracking
-- **📝 Audit Trails**: Complete history of all term changes and approvals
-
-### **🔗 Data Management Suite**
-> Unified interface for heterogeneous data source management
+### Data Source Management
+Unified interface for heterogeneous data source configuration
 
 ![Data Sources](./docs/screenshots/data-sources.png)
 
-#### **📡 Data Sources Configuration**
-- **🔌 Salesforce**: Native Salesforce API integration
-- **🐘 PostgreSQL**: Advanced SQL database connectivity
-- **🌐 REST APIs**: Generic REST endpoint support
-- **⚙️ Custom Connectors**: Extensible connector framework
+- **Salesforce Integration**: Native Salesforce API connectivity
+- **PostgreSQL Support**: Advanced SQL database connections
+- **REST API Connectors**: Generic REST endpoint support
+- **Extensible Framework**: Custom connector development
+
+### Business Terms Management
+Define and manage semantic contracts across your organization
 
 ![Business Terms](./docs/screenshots/business-terms.png)
 
-#### **🏷️ Business Terms Management**
-- **📝 Semantic Contracts**: Define business terms with clear definitions
-- **🔍 Search & Discovery**: Full-text search across all business terminology
-- **📚 Categorization**: Organize terms by domain and business unit
-- **🔗 Cross-References**: Link related terms and concepts
+- **Semantic Definitions**: Clear business term documentation
+- **Search & Discovery**: Full-text search across all terminology
+- **Categorization**: Organize terms by domain and business unit
+- **Cross-References**: Link related concepts and terms
+
+### Mapping Rules Engine
+Visual rule builder for translating business terms to data queries
 
 ![Mapping Rules](./docs/screenshots/mapping-rules.png)
 
-#### **🔀 Mapping Rules Engine**
-- **⚡ Visual Rule Builder**: Drag-and-drop interface for mapping creation
-- **🔍 Field Discovery**: Automatic field detection and type inference
-- **✅ Validation Engine**: Real-time rule validation and conflict detection
-- **🔄 Version Control**: Track mapping rule changes over time
+- **Drag-and-Drop Interface**: Intuitive rule creation workflow
+- **Field Discovery**: Automatic field detection and type inference
+- **Validation Engine**: Real-time rule validation and conflict detection
+- **Version Control**: Track mapping rule changes over time
+
+### Query Testing Interface
+Live translation and testing of semantic queries
 
 ![Query Testing](./docs/screenshots/query-testing.png)
 
-#### **🧪 Query Testing Interface**
-- **⚡ Live Translation**: See business terms converted to SQL in real-time
-- **📊 Lineage Visualization**: Complete query execution traceability
-- **🔍 Result Preview**: Sample data with field-level lineage information
-- **📋 Export Capabilities**: Save queries and share with stakeholders
+- **Real-Time Translation**: See business terms converted to SQL instantly
+- **Lineage Visualization**: Complete query execution traceability
+- **Result Preview**: Sample data with field-level provenance
+- **Export Capabilities**: Save and share tested queries
 
-## 📊 **Semantic Debt Metrics**
+### Governance Dashboard
+Enterprise-grade approval workflows and compliance tracking
 
-The platform measures four key indicators:
+![Governance Dashboard](./docs/screenshots/governance-dashboard.png)
 
-| Metric | Current | Target | Impact |
-|--------|---------|--------|---------|
-| **Term Coverage** | 65% | 90%+ | Clear definitions reduce ambiguity |
-| **Lineage Completeness** | 78% | 95%+ | Provenance builds trust |
-| **Wrangling Efficiency** | 45 min | <30 min | Faster answers = happier users |
-| **Rework Frequency** | 12 tickets | <5/month | Less firefighting |
+- **Term Lifecycle**: Draft → Review → Approval state management
+- **Multi-Step Workflows**: Role-based governance and approvals
+- **Compliance Metrics**: Review completion and stewardship tracking
+- **Audit Trails**: Complete history of all term changes
 
-## 🔧 **API Reference**
+### Semantic Debt Assessment
+Quantify and reduce the hidden costs of unclear terminology
 
-### **Core Endpoints**
-- `GET /health` - Server health check
-- `GET /terms` - List business terms
-- `GET /sources` - List data sources
-- `GET /rules` - List mapping rules
-- `POST /execute` - Execute semantic queries
+![Semantic Debt Dashboard](./docs/screenshots/semantic-debt-dashboard.png)
 
-### **Semantic Debt Endpoints**
-- `GET /semantic-debt/metrics` - Current debt scores
-- `GET /semantic-debt/dashboard` - Full assessment data
-- `POST /semantic-debt/assess` - Run debt assessment
+- **Overall Health Score**: 72% with detailed component breakdowns
+- **ROI Calculator**: $45K monthly waste identification and savings projections
+- **Priority Recommendations**: AI-powered improvement suggestions
+- **Progress Tracking**: Visual metrics with historical trend analysis
 
-### **Governance Endpoints**
-- `GET /terms/{id}` - Get term details
-- `POST /terms/{id}/approve` - Approve term definition
-- `GET /governance/metrics` - Governance compliance
+## Current Features
 
-## 🚀 **Production Deployment**
+- **Data Connectors**: Salesforce, PostgreSQL, REST APIs
+- **Query Translation**: Business terms to actual queries
+- **Response Normalization**: Consistent JSON output format
+- **Semantic Debt Tracking**: Monitor terminology clarity costs
+- **Admin UI**: Manage terms, sources, and test queries
+- **Policy Engine**: Open Policy Agent (OPA) access control
+- **Local Development**: Full mock server for testing
 
-### **Infrastructure Requirements**
-- **Frontend**: Vercel, Netlify, or any static hosting
-- **API Gateway**: Railway, Render, or AWS ECS
-- **Database**: PostgreSQL for production registry
-- **Policy Engine**: Open Policy Agent (OPA) for access control
+## Project Structure
 
-### **Environment Variables**
-```bash
-# Database
-DATABASE_URL=postgresql://...
-
-# OPA Policy Engine
-OPA_URL=http://localhost:8181/v1/data/translation/allow
-
-# Data Source Credentials
-SALESFORCE_INSTANCE_URL=https://your-org.salesforce.com
-SALESFORCE_ACCESS_TOKEN=your-token-here
+```
+jargon/
+├── simple-gateway.js           # Standalone API server
+├── mock-server.js              # Development/testing server
+├── frontend/                   # Next.js admin interface
+│   ├── app/                    # Next.js app router pages
+│   ├── components/             # Reusable UI components
+│   └── public/                 # Static assets
+├── apps/
+│   ├── gateway/                # Full TypeScript API gateway
+│   └── graphql-gateway/        # GraphQL API (optional)
+├── packages/                   # Core business logic
+│   ├── core/                   # Query translation engine
+│   ├── connectors/             # Data source adapters
+│   ├── semantic-debt/          # Debt assessment & tracking
+│   ├── policy/                 # OPA policy enforcement
+│   ├── registry/               # Business term storage
+│   ├── lineage/                # Data lineage tracking
+│   ├── context/                # LLM context generation
+│   ├── codegen/                # OpenAPI spec generation
+│   └── cli/                    # Command-line tools
+├── config/                     # Configuration files
+├── opa/                        # Open Policy Agent policies
+├── infra/                      # Infrastructure (Docker, etc.)
+└── docs/screenshots/           # UI screenshots and docs
 ```
 
-## 🧪 **Development**
+## API Reference
 
-### **Running Tests**
-```bash
-pnpm test
+### Core Endpoints
+
+#### Execute Query
+```http
+POST /execute
+Content-Type: application/json
+
+{
+  "term": "active_customer",
+  "filters": {
+    "region": "North America",
+    "created_after": "2024-01-01"
+  }
+}
 ```
 
-### **Building for Production**
-```bash
-pnpm build
+#### List Data Sources
+```http
+GET /sources
 ```
 
-### **Code Quality**
-```bash
-pnpm lint
-pnpm type-check
+#### List Business Terms
+```http
+GET /terms
 ```
 
-## 📈 **Roadmap**
+#### List Mapping Rules
+```http
+GET /rules
+```
 
-### **Phase 1: Core Platform** ✅
-- Semantic translation engine
-- Basic data connectors
-- REST API gateway
-- Simple admin interface
+### Semantic Debt Endpoints
 
-### **Phase 2: Semantic Debt Management** ✅
-- Debt assessment calculator
-- Governance workflows
-- Drift detection
-- Professional admin UI
+#### Get Debt Metrics
+```http
+GET /semantic-debt/metrics
+```
 
-### **Phase 3: Enterprise Features** 🔄
-- Advanced connectors (Snowflake, BigQuery)
-- Multi-tenancy support
-- Audit logging and compliance
-- Advanced analytics and reporting
+#### Full Assessment Dashboard
+```http
+GET /semantic-debt/dashboard
+```
 
-### **Phase 4: AI Integration** 📋
-- LLM context generation
-- Natural language query parsing
-- Automated semantic contract suggestions
-- Chatbot integration
+#### Run Debt Assessment
+```http
+POST /semantic-debt/assess
+Content-Type: application/json
 
-## 🤝 **Contributing**
+{
+  "termCoverage": 65,
+  "lineageCompleteness": 78,
+  "wranglingMinutes": 45
+}
+```
 
-1. **Fork** the repository
-2. **Create** a feature branch
-3. **Make** your changes
-4. **Add** tests for new functionality
-5. **Submit** a pull request
+### Utility Endpoints
 
-### **Development Guidelines**
-- Use TypeScript for type safety
-- Follow existing component patterns
-- Add comprehensive error handling
-- Include loading states for all async operations
-- Document new API endpoints
+#### Health Check
+```http
+GET /health
+```
 
-## 📄 **License**
+#### OpenAPI Specification
+```http
+GET /openapi.json
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+#### LLM Context Bundle
+```http
+GET /context
+```
 
-## 🙏 **Acknowledgments**
+## Roadmap
 
-- **Semantic Debt Concept**: Inspired by the enterprise AI community's struggle with unclear terminology
-- **Translation Layer Pattern**: Building on data virtualization and semantic web principles
-- **Modern Web Stack**: Leveraging React, Next.js, and TypeScript for reliability
+**Phase 1 (Current)**: Core translation layer with basic connectors
+**Phase 2**: Advanced data source support (Snowflake, BigQuery, etc.)
+**Phase 3**: Governance workflows and approval processes
+**Phase 4**: Natural language query parsing
+
+## Contributing
+
+This is designed to be extended. Need a new connector? Want to improve the query parser? Contributions welcome:
+
+1. Fork the repo
+2. Add your feature
+3. Test with the mock server
+4. Submit a pull request
+
+Common contribution areas:
+- New data source connectors (Snowflake, BigQuery, etc.)
+- Query optimization and performance improvements
+- Response format enhancements
+- Admin UI improvements
+- Semantic debt calculation refinements
+
+## License
+
+Business Source License 1.1 - free for development and small businesses, commercial licensing for larger organizations. Automatically converts to Apache-2.0 in 2028.
+
+## Why Build This?
+
+Every company faces the same integration headaches. Instead of each team building their own Salesforce connector, their own data normalization logic, and their own business term mappings, we can share the work.
+
+The vision: **One semantic layer, many applications.** Your chatbots, dashboards, and analytics tools all speak the same language about your business data.
 
 ---
 
-## 🎯 **The Enterprise Impact**
-
-### **The Semantic Debt Crisis**
-
-Every enterprise faces this hidden crisis:
-
-- **💸 $540K Annual Waste**: Manual reconciliation and Excel hacks
-- **⏰ 45 Minutes**: Average time to resolve unclear terminology issues
-- **📉 12 Tickets/Month**: Support burden from ambiguous definitions
-- **🔴 65% Coverage**: Current state of documented business terms
-
-### **Your Competitive Advantage**
-
-Transform your enterprise AI capabilities:
-
-- **⚡ 50% Faster Queries**: Clear terminology enables instant understanding
-- **📈 95% Trust Score**: Complete lineage builds executive confidence
-- **🛡️ Risk Mitigation**: Governance prevents costly mistakes
-- **🚀 Innovation Acceleration**: Focus on insights, not data wrangling
-
-### **Ready to Transform Your Enterprise?**
-
-| **Start Small** | **Scale Fast** | **Enterprise Ready** |
-|-----------------|----------------|----------------------|
-| **Free Setup** | **Multi-Source** | **Governance** |
-| Local deployment | Salesforce + SQL | Approval workflows |
-| Mock data testing | REST API integration | Audit trails |
-| Proof of concept | Production registry | Compliance reporting |
-
----
-
-## 🤝 **Contributing**
-
-We welcome contributions from the enterprise AI community! Here's how to get involved:
-
-### **📝 For Contributors with Screenshots**
-
-If you're contributing screenshots or documentation improvements:
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b enhance-documentation`
-3. **Add** screenshots to `docs/screenshots/` directory
-4. **Update** README.md with proper image paths and alt text
-5. **Test** locally: `pnpm install && pnpm dev`
-6. **Submit** a pull request with description of changes
-
-### **🛠️ Development Guidelines**
-- Use TypeScript for type safety
-- Follow existing component patterns with Shadcn/UI
-- Add comprehensive error handling
-- Include loading states for all async operations
-- Document new API endpoints thoroughly
-
-### **📋 Pull Request Template**
-```markdown
-## Description
-Brief description of changes
-
-## Screenshots Added
-- [ ] Dashboard overview
-- [ ] Semantic debt assessment
-- [ ] Governance workflows
-- [ ] Data source configuration
-
-## Testing
-- [ ] Screenshots display correctly in README
-- [ ] Links work in both light and dark modes
-- [ ] Images load quickly (< 500KB each)
-```
-
----
-
-## 🌟 **Success Stories & Use Cases**
-
-### **Financial Services**
-*"Eliminated 40 hours/month of manual reconciliation work"*
-- Bank with 50+ data sources
-- Reduced semantic debt from 78% to 23%
-- Executive dashboards now trusted for million-dollar decisions
-
-### **Healthcare**
-*"Finally unified our patient terminology across 12 systems"*
-- Multi-hospital network
-- Standardized 200+ medical terms
-- Improved reporting accuracy by 95%
-
-### **Retail**
-*"Cut customer analytics time from 3 days to 3 hours"*
-- E-commerce platform
-- Real-time customer segmentation
-- Increased conversion rates through better targeting
-
----
-
-## 📞 **Support & Community**
-
-- **📧 Email**: support@jargon-platform.com
-- **💬 Discord**: [Join our community](https://discord.gg/jargon-platform)
-- **📖 Documentation**: [Full API docs](./docs/)
-- **🐛 Issues**: [GitHub Issues](https://github.com/your-username/jargon/issues)
-- **💡 Feature Requests**: [GitHub Discussions](https://github.com/your-username/jargon/discussions)
-
----
-
-*Built with ❤️ for the enterprise AI community*
-
-## 📄 **License**
-
-This project is licensed under the **Business Source License 1.1** - see the [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md) files for details.
-
-**Quick Summary:**
-- ✅ Free for development, testing, and evaluation
-- ✅ Free production use for organizations with <100 FTE or <$5M annual revenue
-- ❌ Commercial licensing required for larger organizations or SaaS/hosted offerings
-- 🔄 Automatically converts to Apache-2.0 on September 10, 2028
+**Ready to consolidate your APIs?** Start with `git clone` and be querying multiple systems in minutes.

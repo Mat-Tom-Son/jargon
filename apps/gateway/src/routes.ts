@@ -21,13 +21,29 @@ export function makeRouter() {
   // Boot two sources: Salesforce and a generic REST API.  These
   // connectors are stubs; you should replace the configuration
   // parameters with real credentials and endpoints.
-  const sf = new SalesforceConnector('sf', { instanceUrl: 'https://example.my.salesforce.com', accessToken: 'x' });
-  const rest = new RestConnector('catalog', { baseUrl: 'https://api.example.com', manifest: { endpoints: ['/customers', '/orders'] } });
+  const sf = new SalesforceConnector('sf', {
+    instanceUrl: process.env.SALESFORCE_INSTANCE_URL || 'https://example.my.salesforce.com',
+    accessToken: process.env.SALESFORCE_ACCESS_TOKEN || 'x'
+  });
+  const rest = new RestConnector('catalog', {
+    baseUrl: process.env.REST_API_BASE_URL || 'https://api.example.com',
+    manifest: { endpoints: ['/customers', '/orders'] }
+  });
 
   const connectors = { sf, catalog: rest } as const;
   const sources = {
-    sf: { id: 'sf', kind: 'salesforce', name: 'Salesforce', config: {} },
-    catalog: { id: 'catalog', kind: 'rest', name: 'Catalog API', config: { baseUrl: 'https://api.example.com' } }
+    sf: {
+      id: 'sf',
+      kind: 'salesforce' as const,
+      name: 'Salesforce',
+      config: { instanceUrl: process.env.SALESFORCE_INSTANCE_URL }
+    },
+    catalog: {
+      id: 'catalog',
+      kind: 'rest' as const,
+      name: 'Catalog API',
+      config: { baseUrl: process.env.REST_API_BASE_URL || 'https://api.example.com' }
+    }
   } as const;
 
   // Define a simple semantic contract.  In practice this would be
