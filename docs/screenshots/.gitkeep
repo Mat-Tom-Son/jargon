@@ -1,0 +1,9 @@
+# This file ensures the screenshots directory is tracked by git
+# Add your README screenshots here following the naming convention:
+# - dashboard-overview.png
+# - semantic-debt-dashboard.png
+# - governance-dashboard.png
+# - data-sources.png
+# - business-terms.png
+# - mapping-rules.png
+# - query-testing.png

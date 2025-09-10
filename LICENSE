@@ -1,0 +1,73 @@
+Business Source License 1.1
+
+Parameters
+Licensor: Jargon AI, Inc. (or successor)
+Licensed Work: The “/jargon” core repository and all files within it
+Additional Use Grant:
+  You may use the Licensed Work in production if your organization has
+  (a) fewer than 100 full-time equivalent employees OR
+  (b) less than US $5,000,000 in annual gross revenue,
+  and you do not offer the Licensed Work as a managed or hosted service to third parties.
+  Evaluation, development, testing, and non-production use are permitted for everyone.
+Change Date: 2028-09-10
+Change License: Apache License, Version 2.0
+
+------------------------------------------------------------------------------
+
+Terms
+
+1. License Grant (Non-Production).
+   Subject to these terms, Licensor grants you a non-exclusive, worldwide,
+   non-transferable, non-sublicensable copyright license to use, copy, modify,
+   create derivative works of, and distribute the Licensed Work for any purpose
+   other than Production Use until the Change Date.
+
+2. Production Use.
+   “Production Use” means use of the Licensed Work, with or without
+   modification, in or for the benefit of an application, product, or service
+   provided to end users or other third parties, whether internal or external,
+   other than for evaluation, development, or testing.
+
+3. Additional Use Grant (Small-Org Production).
+   Notwithstanding Section 2, Production Use is permitted before the Change Date
+   if you meet the “Additional Use Grant” parameters set above. The Additional
+   Use Grant does not permit you to offer the Licensed Work (or substantial
+   portions of it) as a managed, hosted, or “as-a-service” offering to third
+   parties. A commercial license from Licensor is required for that.
+
+4. Change License.
+   On the Change Date, the Change License specified above will apply to the
+   Licensed Work. After the Change Date, you may, at your option, continue to
+   use the Licensed Work under this license or under the Change License.
+
+5. Distribution; Notice.
+   If you distribute the Licensed Work or derivative works, you must
+   (a) include a complete copy of this license,
+   (b) retain all copyright, license, and attribution notices, and
+   (c) clearly identify modifications you have made.
+
+6. Termination.
+   If you breach this license, your rights terminate automatically.
+   If you cure the breach within 30 days of notice, your rights are reinstated
+   unless and until you breach again.
+
+7. Trademarks.
+   This license does not grant rights to use Licensor’s trademarks, service
+   marks, or trade names.
+
+8. Disclaimer.
+   THE LICENSED WORK IS PROVIDED “AS IS” WITHOUT WARRANTIES OR CONDITIONS OF ANY
+   KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY WARRANTIES
+   OR CONDITIONS OF TITLE, NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
+   PARTICULAR PURPOSE. YOU BEAR THE RISK OF USING IT.
+
+9. Limitation of Liability.
+   TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT WILL LICENSOR BE LIABLE
+   FOR ANY DAMAGES, WHETHER DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR
+   CONSEQUENTIAL, ARISING OUT OF OR RELATED TO THIS LICENSE OR USE OF THE
+   LICENSED WORK.
+
+------------------------------------------------------------------------------
+
+This license is based on the Business Source License 1.1 published by MariaDB.
+For reference text and background, see https://mariadb.com/bsl11/

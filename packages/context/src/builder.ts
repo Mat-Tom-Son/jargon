@@ -1,0 +1,1 @@
+export { buildContext } from '@translation/core/src/contextBundle';

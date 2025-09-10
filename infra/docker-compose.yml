@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  opa:
+    image: openpolicyagent/opa:latest
+    command: ["run", "--server", "/policy.rego"]
+    ports:
+      - "8181:8181"
+    volumes:
+      - ../opa/policy.rego:/policy.rego:ro
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: tlayer
+      POSTGRES_USER: tlayer
+      POSTGRES_DB: tlayer
+    ports:
+      - "5432:5432"

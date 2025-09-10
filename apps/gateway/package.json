@@ -1,0 +1,24 @@
+{
+  "name": "@translation/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.1",
+    "cors": "^2.8.5",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/cors": "^2.8.13",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}
