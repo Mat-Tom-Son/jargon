@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   creator: 'Jargon AI',
   publisher: 'Jargon AI, Inc.',
   robots: 'noindex, nofollow', // Since this is an admin interface
+  icons: {
+    icon: '/jargon-ai.png',
+    shortcut: '/jargon-ai.png',
+    apple: '/jargon-ai.png',
+  },
 }
 
 export const viewport = {

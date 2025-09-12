@@ -1,13 +1,107 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Database, BookOpen, GitBranch, Activity, Plus, ArrowRight, ArrowUpRight, TrendingUp, CheckCircle, AlertTriangle, Zap, Users } from "lucide-react"
 import Link from "next/link"
+import { HealthCheck } from "@/components/health-check"
 
 export function DashboardOverview() {
+  const [demoDataEnabled, setDemoDataEnabled] = useState<boolean | null>(null)
+  const [sources, setSources] = useState<any[]>([])
+  const [terms, setTerms] = useState<any[]>([])
+  const [rules, setRules] = useState<any[]>([])
+
+  // Demo data
+  const demoSources = [
+    { id: "1", name: "Salesforce Production", type: "REST", status: "active", objectCount: 847 },
+    { id: "2", name: "Customer Database", type: "PostgreSQL", status: "active", objectCount: 23 },
+    { id: "3", name: "Analytics API", type: "REST", status: "pending", objectCount: 0 }
+  ]
+
+  const demoTerms = [
+    { id: "1", name: "Active Customer", category: "Customer" },
+    { id: "2", name: "Opportunity Value", category: "Sales" },
+    { id: "3", name: "Monthly Recurring Revenue", category: "Finance" },
+    { id: "4", name: "Lead Score", category: "Marketing" },
+    { id: "5", name: "Customer Lifetime Value", category: "Customer" },
+    { id: "6", name: "Churn Rate", category: "Customer" }
+  ]
+
+  const demoRules = [
+    { id: "1", termName: "Active Customer", sourceName: "Salesforce Production", status: "validated" },
+    { id: "2", termName: "Opportunity Value", sourceName: "Salesforce Production", status: "validated" },
+    { id: "3", termName: "Monthly Recurring Revenue", sourceName: "Customer Database", status: "draft" },
+    { id: "4", termName: "Lead Score", sourceName: "Analytics API", status: "error" }
+  ]
+
+  // Load demo data setting from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('ENABLE_DEMO_DATA')
+    if (stored !== null) {
+      const enabled = JSON.parse(stored)
+      setDemoDataEnabled(enabled)
+      if (!enabled) {
+        setSources([])
+        setTerms([])
+        setRules([])
+      } else {
+        setSources(demoSources)
+        setTerms(demoTerms)
+        setRules(demoRules)
+      }
+    } else {
+      // If no stored value, default to true and store it
+      setDemoDataEnabled(true)
+      setSources(demoSources)
+      setTerms(demoTerms)
+      setRules(demoRules)
+      localStorage.setItem('ENABLE_DEMO_DATA', 'true')
+    }
+  }, [])
+
+  // Update when demo data setting changes
+  useEffect(() => {
+    if (demoDataEnabled !== null) {
+      if (!demoDataEnabled) {
+        setSources([])
+        setTerms([])
+        setRules([])
+      } else {
+        setSources(demoSources)
+        setTerms(demoTerms)
+        setRules(demoRules)
+      }
+    }
+  }, [demoDataEnabled])
+
+  // Listen for demo data setting changes from settings page
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ENABLE_DEMO_DATA') {
+        const enabled = e.newValue ? JSON.parse(e.newValue) : true
+        setDemoDataEnabled(enabled)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  // Calculate dynamic stats
+  const activeSources = sources.filter(s => s.status === 'active').length
+  const totalSources = sources.length
+  const validatedRules = rules.filter(r => r.status === 'validated').length
+  const totalRules = rules.length
+
   return (
     <div className="space-y-6">
+      {/* Gateway Health Check */}
+      <HealthCheck />
+
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Translation Layer Admin</h1>
@@ -53,15 +147,15 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-baseline gap-2">
-                <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">3</div>
+                <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">{totalSources}</div>
                 <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">sources</div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Active: 2</span>
-                  <span className="text-muted-foreground">Pending: 1</span>
+                  <span className="text-muted-foreground">Active: {activeSources}</span>
+                  <span className="text-muted-foreground">Pending: {totalSources - activeSources}</span>
                 </div>
-                <Progress value={67} className="h-2" />
+                <Progress value={totalSources > 0 ? (activeSources / totalSources) * 100 : 0} className="h-2" />
               </div>
               <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -81,7 +175,7 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-baseline gap-2">
-                <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">12</div>
+                <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">{terms.length}</div>
                 <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">terms</div>
               </div>
               <div className="flex items-center gap-2 text-xs">
@@ -106,19 +200,19 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-baseline gap-2">
-                <div className="text-3xl font-bold text-green-900 dark:text-green-100">8</div>
+                <div className="text-3xl font-bold text-green-900 dark:text-green-100">{totalRules}</div>
                 <div className="text-sm text-green-600 dark:text-green-400 font-medium">rules</div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Validated: 8</span>
-                  <span className="text-muted-foreground">Total: 8</span>
+                  <span className="text-muted-foreground">Validated: {validatedRules}</span>
+                  <span className="text-muted-foreground">Total: {totalRules}</span>
                 </div>
-                <Progress value={100} className="h-2" />
+                <Progress value={totalRules > 0 ? (validatedRules / totalRules) * 100 : 0} className="h-2" />
               </div>
               <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
                 <CheckCircle className="h-3 w-3" />
-                <span>100% validated</span>
+                <span>{totalRules > 0 ? Math.round((validatedRules / totalRules) * 100) : 0}% validated</span>
               </div>
             </CardContent>
           </Link>
@@ -132,18 +226,34 @@ export function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-baseline gap-2">
-              <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">1,247</div>
-              <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">queries</div>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Activity className="h-3 w-3 text-orange-500" />
-              <span className="text-orange-700 dark:text-orange-400 font-medium">Last 24 hours</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
-              <ArrowUpRight className="h-3 w-3" />
-              <span>Avg 120ms response</span>
-            </div>
+            {demoDataEnabled !== null && demoDataEnabled ? (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+                    {rules.length > 0 ? (rules.length * 156).toLocaleString() : '1,247'}
+                  </div>
+                  <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">queries</div>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Activity className="h-3 w-3 text-orange-500" />
+                  <span className="text-orange-700 dark:text-orange-400 font-medium">Last 24 hours</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
+                  <ArrowUpRight className="h-3 w-3" />
+                  <span>Avg {rules.length > 0 ? Math.round(120 + (rules.length * 5)) : 120}ms response</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Query metrics unavailable
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enable demo data in settings to see sample metrics
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -156,22 +266,40 @@ export function DashboardOverview() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-baseline gap-2">
-                <div className="text-3xl font-bold text-red-900 dark:text-red-100">72%</div>
-                <div className="text-sm text-red-600 dark:text-red-400 font-medium">health score</div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Current: 72%</span>
-                  <span className="text-muted-foreground">Target: 90%+</span>
+            {demoDataEnabled !== null && demoDataEnabled ? (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-3xl font-bold text-red-900 dark:text-red-100">
+                    {rules.length > 0 ? Math.max(85 - (rules.filter(r => r.status === 'error').length * 5), 60) : 72}%
+                  </div>
+                  <div className="text-sm text-red-600 dark:text-red-400 font-medium">health score</div>
                 </div>
-                <Progress value={72} className="h-2" />
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      Current: {rules.length > 0 ? Math.max(85 - (rules.filter(r => r.status === 'error').length * 5), 60) : 72}%
+                    </span>
+                    <span className="text-muted-foreground">Target: 90%+</span>
+                  </div>
+                  <Progress value={rules.length > 0 ? Math.max(85 - (rules.filter(r => r.status === 'error').length * 5), 60) : 72} className="h-2" />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
+                  <TrendingUp className="h-3 w-3" />
+                  <span>${rules.length > 0 ? (rules.length * 3.5).toFixed(0) : 45}K monthly savings potential</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Semantic debt analysis unavailable
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enable demo data in settings to see sample analysis
+                </p>
               </div>
-              <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
-                <TrendingUp className="h-3 w-3" />
-                <span>$45K monthly savings potential</span>
-              </div>
-            </CardContent>
+            )}
+          </CardContent>
           </Link>
         </Card>
       </div>
@@ -234,36 +362,30 @@ export function DashboardOverview() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Salesforce Production</p>
-                  <p className="text-sm text-muted-foreground">REST API • 847 objects</p>
+            {sources.slice(0, 3).map((source) => (
+              <div key={source.id} className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-2 h-2 rounded-full ${source.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                  <div>
+                    <p className="font-medium">{source.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {source.type} • {source.objectCount} {source.type === 'PostgreSQL' ? 'tables' : 'objects'}
+                    </p>
+                  </div>
                 </div>
+                <Badge variant={source.status === 'active' ? "default" : "secondary"}>
+                  {source.status === 'active' ? 'Active' : 'Pending'}
+                </Badge>
               </div>
-              <Badge variant="default">Active</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Customer Database</p>
-                  <p className="text-sm text-muted-foreground">PostgreSQL • 23 tables</p>
-                </div>
+            ))}
+            {sources.length === 0 && (
+              <div className="text-center py-8">
+                <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {demoDataEnabled ? "No data sources configured yet" : "Demo data is disabled"}
+                </p>
               </div>
-              <Badge variant="default">Active</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Analytics API</p>
-                  <p className="text-sm text-muted-foreground">REST API • Schema discovery</p>
-                </div>
-              </div>
-              <Badge variant="secondary">Pending</Badge>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -281,36 +403,40 @@ export function DashboardOverview() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <div>
-                  <p className="font-medium">Active Customer → Salesforce</p>
-                  <p className="text-sm text-muted-foreground">Account.Status = 'Active'</p>
+            {rules.slice(0, 3).map((rule) => (
+              <div key={rule.id} className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {rule.status === 'validated' ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : rule.status === 'error' ? (
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  )}
+                  <div>
+                    <p className="font-medium">{rule.termName} → {rule.sourceName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {rule.termName}.{rule.sourceName.split(' ')[0].toLowerCase()}_field
+                    </p>
+                  </div>
                 </div>
+                <Badge variant={
+                  rule.status === 'validated' ? "default" :
+                  rule.status === 'error' ? "destructive" : "outline"
+                }>
+                  {rule.status === 'validated' ? 'Validated' :
+                   rule.status === 'error' ? 'Error' : 'Needs Review'}
+                </Badge>
               </div>
-              <Badge variant="default">Validated</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <div>
-                  <p className="font-medium">Revenue → Database</p>
-                  <p className="text-sm text-muted-foreground">orders.total_amount</p>
-                </div>
+            ))}
+            {rules.length === 0 && (
+              <div className="text-center py-8">
+                <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {demoDataEnabled ? "No mapping rules created yet" : "Demo data is disabled"}
+                </p>
               </div>
-              <Badge variant="default">Validated</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                <div>
-                  <p className="font-medium">User Activity → Analytics</p>
-                  <p className="text-sm text-muted-foreground">events.user_actions</p>
-                </div>
-              </div>
-              <Badge variant="outline">Needs Review</Badge>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

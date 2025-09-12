@@ -2,7 +2,7 @@ import { QueryBuilderInterface } from "@/components/query-builder/query-builder-
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 
-export default function TestPage() {
+export default function QueryBuilderPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -15,3 +15,5 @@ export default function TestPage() {
     </div>
   )
 }
+
+

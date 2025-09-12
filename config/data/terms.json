@@ -1,0 +1,44 @@
+[
+  {
+    "id": "t_active_customer",
+    "name": "Active Customer",
+    "description": "A customer with current subscription and not churned",
+    "category": "Customer",
+    "owner": "Data Team",
+    "tags": [
+      "customer",
+      "subscription",
+      "active"
+    ],
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "t_high_value_customer",
+    "name": "High Value Customer",
+    "description": "Customer with annual revenue over $10,000",
+    "category": "Customer",
+    "owner": "Sales Team",
+    "tags": [
+      "customer",
+      "revenue",
+      "high-value"
+    ],
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "name": "VIP Customer",
+    "description": "High-value customer with premium support",
+    "category": "Customer",
+    "owner": "Customer Success Team",
+    "tags": [
+      "customer",
+      "vip",
+      "premium"
+    ],
+    "id": "term_1757613227609",
+    "created_at": "2025-09-11T17:53:47.609Z",
+    "updated_at": "2025-09-11T17:53:47.609Z"
+  }
+]

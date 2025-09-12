@@ -1,0 +1,166 @@
+[
+  {
+    "id": "openfda_v1",
+    "name": "openFDA API",
+    "kind": "rest",
+    "version": "1.0.0",
+    "environment": "development",
+    "status": "active",
+    "description": "OpenFDA REST API for drugs/devices/recalls",
+    "tags": ["development", "rest", "openfda"],
+    "config": {
+      "baseUrl": "https://api.fda.gov",
+      "timeout": 10000,
+      "headers": {
+        "User-Agent": "Jargon/1.0.0",
+        "Accept": "application/json"
+      }
+    },
+    "metadata": {
+      "endpoints": [
+        "/drug/ndc.json",
+        "/drug/label.json",
+        "/drug/enforcement.json",
+        "/device/510k.json",
+        "/device/recall.json"
+      ],
+      "lastSync": null,
+      "responseTime": null
+    },
+    "created_at": "2025-09-11T21:00:00.000Z",
+    "updated_at": "2025-09-11T21:00:00.000Z"
+  },
+  {
+    "id": "postgres_v1",
+    "name": "PostgreSQL - Development",
+    "kind": "sql",
+    "version": "1.0.0",
+    "environment": "development",
+    "status": "active",
+    "description": "Primary development PostgreSQL database",
+    "tags": ["development", "postgresql", "primary"],
+    "config": {
+      "host": "localhost",
+      "port": 5432,
+      "database": "jargon_dev",
+      "user": "postgres",
+      "password": "password",
+      "ssl": false,
+      "connectionTimeoutMillis": 5000
+    },
+    "metadata": {
+      "tables": ["customers", "orders", "products"],
+      "lastSync": "2025-09-11T20:05:00.000Z",
+      "recordCount": 150
+    },
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-09-11T20:05:00.000Z"
+  },
+  {
+    "id": "postgres_prod_v1",
+    "name": "PostgreSQL - Production",
+    "kind": "sql",
+    "version": "1.0.0",
+    "environment": "production",
+    "status": "active",
+    "description": "Production PostgreSQL database",
+    "tags": ["production", "postgresql", "live"],
+    "config": {
+      "host": "${POSTGRES_PROD_HOST}",
+      "port": 5432,
+      "database": "${POSTGRES_PROD_DATABASE}",
+      "user": "${POSTGRES_PROD_USER}",
+      "password": "${POSTGRES_PROD_PASSWORD}",
+      "ssl": true,
+      "connectionTimeoutMillis": 10000
+    },
+    "metadata": {
+      "tables": ["customers", "orders", "products", "analytics"],
+      "lastSync": "2025-09-11T19:00:00.000Z",
+      "recordCount": 25000
+    },
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-09-11T19:00:00.000Z"
+  },
+  {
+    "id": "salesforce_prod_v1",
+    "name": "Salesforce - Production",
+    "kind": "salesforce",
+    "version": "1.0.0",
+    "environment": "production",
+    "status": "active",
+    "description": "Production Salesforce instance",
+    "tags": ["production", "salesforce", "crm"],
+    "config": {
+      "instanceUrl": "${SALESFORCE_INSTANCE_URL}",
+      "accessToken": "${SALESFORCE_ACCESS_TOKEN}",
+      "refreshToken": "${SALESFORCE_REFRESH_TOKEN}",
+      "clientId": "${SALESFORCE_CLIENT_ID}",
+      "clientSecret": "${SALESFORCE_CLIENT_SECRET}",
+      "version": "v58.0"
+    },
+    "metadata": {
+      "objects": ["Account", "Contact", "Opportunity", "Lead"],
+      "lastSync": "2025-09-11T18:30:00.000Z",
+      "recordCount": 5000
+    },
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-09-11T18:30:00.000Z"
+  },
+  {
+    "id": "rest_jsonplaceholder_v1",
+    "name": "JSONPlaceholder API",
+    "kind": "rest",
+    "version": "1.0.0",
+    "environment": "development",
+    "status": "active",
+    "description": "Test REST API for development",
+    "tags": ["development", "rest", "test"],
+    "config": {
+      "baseUrl": "https://jsonplaceholder.typicode.com",
+      "timeout": 5000,
+      "headers": {
+        "User-Agent": "Jargon/1.0.0",
+        "Accept": "application/json"
+      },
+      "auth": null
+    },
+    "metadata": {
+      "endpoints": ["/posts", "/users", "/todos", "/albums"],
+      "lastSync": "2025-09-11T17:53:36.920Z",
+      "responseTime": 245
+    },
+    "created_at": "2025-09-11T17:53:36.920Z",
+    "updated_at": "2025-09-11T17:53:36.920Z"
+  },
+  {
+    "id": "rest_github_v1",
+    "name": "GitHub API",
+    "kind": "rest",
+    "version": "1.0.0",
+    "environment": "development",
+    "status": "inactive",
+    "description": "GitHub REST API for repository data",
+    "tags": ["development", "rest", "github"],
+    "config": {
+      "baseUrl": "https://api.github.com",
+      "timeout": 10000,
+      "headers": {
+        "User-Agent": "Jargon/1.0.0",
+        "Accept": "application/vnd.github.v3+json",
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      },
+      "auth": {
+        "type": "bearer",
+        "token": "${GITHUB_TOKEN}"
+      }
+    },
+    "metadata": {
+      "endpoints": ["/repos", "/users", "/issues"],
+      "lastSync": null,
+      "responseTime": null
+    },
+    "created_at": "2025-09-11T20:05:00.000Z",
+    "updated_at": "2025-09-11T20:05:00.000Z"
+  }
+]

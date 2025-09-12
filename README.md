@@ -1,12 +1,12 @@
-# Jargon - Unified API Layer for Business Data
+# Jargon - Enterprise Data Translation Layer
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Mat-Tom-Son/jargon)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-BSL%201.1-blue.svg)](LICENSE)
 
-> **Stop integrating with every API separately.** Get a unified, semantic-aware layer over all your business systems.
+> **Enterprise-grade semantic data translation.** Unify your business systems into a single, intelligent API layer.
 
-Jargon consolidates your scattered business APIs (Salesforce, PostgreSQL, REST endpoints) into one clean interface with consistent terminology. Instead of building custom integrations for every chatbot or analytics tool, connect once and get normalized, governed data.
+Jargon transforms complex enterprise data sources (Salesforce, PostgreSQL, REST APIs) into a unified, semantic-aware interface. Build once, integrate everywhere - from chatbots to analytics platforms.
 
 ## The Problem
 
@@ -33,16 +33,80 @@ Every AI tool or chatbot needs custom integration code, authentication handling,
 ```bash
 git clone https://github.com/Mat-Tom-Son/jargon.git
 cd jargon
-npm install
 
-# Start the API server
-node simple-gateway.js
+# Install all dependencies
+pnpm install
 
-# Start the admin interface
-cd frontend && npm run dev
+# Setup the main gateway server
+cd apps/gateway
+npm run setup  # Creates .env file
+# Edit .env with your database credentials
+
+# Start the unified API server
+npm run dev
+
+# In another terminal, start the admin interface
+cd ../../frontend
+npm run dev
 ```
 
 Visit `http://localhost:3000` for the admin interface and `http://localhost:3001` for API access.
+
+## 🎛️ **Admin Interface Features**
+
+The admin interface provides:
+
+- **Overview Dashboard** - System health and recent activity
+- **Data Sources** - Configure and manage your data connections
+- **Business Terms** - Define semantic concepts and terminology
+- **Mapping Rules** - Connect terms to data source queries
+- **Query Testing** - Test your semantic queries in real-time
+- **Semantic Debt** - Monitor terminology clarity and efficiency
+- **Governance** - Approval workflows and compliance tracking
+- **Settings** - Configure environment variables and integrations
+
+## ⚙️ **Easy Setup for New Developers**
+
+1. **Start the servers:**
+   ```bash
+   cd apps/gateway && npm run dev
+   cd ../../frontend && npm run dev
+   ```
+
+2. **Configure your integrations:**
+   - Visit `http://localhost:3000/settings`
+   - Set up PostgreSQL, Salesforce, or REST API credentials
+   - All changes apply immediately
+
+3. **Test your setup:**
+   ```bash
+   cd apps/gateway
+   npm run test
+   ```
+
+### Test Your Setup
+
+```bash
+# Run integration tests
+cd apps/gateway
+npm run test
+
+# Restart server after configuration changes
+npm run restart
+# or from project root:
+npm run restart
+```
+
+### Configuration Management
+
+After updating settings in the admin UI (`http://localhost:3000/settings`):
+
+1. **Configuration is automatically saved** to `apps/gateway/.env`
+2. **Restart the server** to apply changes:
+   ```bash
+   npm run restart
+   ```
+3. **Verify changes** in the admin interface
 
 ## How It Works
 
@@ -196,21 +260,18 @@ Quantify and reduce the hidden costs of unclear terminology
 - **Semantic Debt Tracking**: Monitor terminology clarity costs
 - **Admin UI**: Manage terms, sources, and test queries
 - **Policy Engine**: Open Policy Agent (OPA) access control
-- **Local Development**: Full mock server for testing
+- **Production Ready**: Real database connections and enterprise features
 
 ## Project Structure
 
 ```
 jargon/
-├── simple-gateway.js           # Standalone API server
-├── mock-server.js              # Development/testing server
 ├── frontend/                   # Next.js admin interface
 │   ├── app/                    # Next.js app router pages
 │   ├── components/             # Reusable UI components
 │   └── public/                 # Static assets
 ├── apps/
-│   ├── gateway/                # Full TypeScript API gateway
-│   └── graphql-gateway/        # GraphQL API (optional)
+│   └── gateway/                # Main unified API gateway
 ├── packages/                   # Core business logic
 │   ├── core/                   # Query translation engine
 │   ├── connectors/             # Data source adapters

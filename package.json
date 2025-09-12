@@ -7,7 +7,10 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "echo \"Run dev commands in sub-packages\""
+    "dev": "echo \"Run dev commands in sub-packages\"",
+    "restart": "./restart-server.sh",
+    "gateway": "cd apps/gateway && npm run dev",
+    "frontend": "cd frontend && npm run dev"
   },
   "dependencies": {
     "cors": "^2.8.5",

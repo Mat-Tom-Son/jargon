@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, BookOpen, MoreHorizontal, Edit, Trash2, GitBranch, Users, TrendingUp, CheckCircle, Clock, User } from "lucide-react"
+import { Plus, Search, BookOpen, MoreHorizontal, Edit, Trash2, GitBranch, Users, TrendingUp, CheckCircle, Clock, User, AlertTriangle } from "lucide-react"
 import { AddBusinessTermDialog } from "./add-business-term-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
@@ -85,11 +86,58 @@ const mockBusinessTerms = [
 const categories = ["All", "Customer", "Sales", "Finance", "Marketing"]
 
 export function BusinessTermsList() {
+  const searchParams = useSearchParams()
+  const focusedTermId = searchParams.get('termId') || ''
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
+  const [demoDataEnabled, setDemoDataEnabled] = useState<boolean | null>(null)
+  const [businessTerms, setBusinessTerms] = useState(mockBusinessTerms)
+  const focusedRef = useRef<HTMLDivElement | null>(null)
 
-  const filteredTerms = mockBusinessTerms.filter((term) => {
+  // Load demo data setting from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('ENABLE_DEMO_DATA')
+    if (stored !== null) {
+      const enabled = JSON.parse(stored)
+      setDemoDataEnabled(enabled)
+      if (!enabled) {
+        setBusinessTerms([]) // Clear demo data when disabled
+      } else {
+        setBusinessTerms(mockBusinessTerms) // Restore demo data when enabled
+      }
+    } else {
+      // If no stored value, default to true and store it
+      setDemoDataEnabled(true)
+      localStorage.setItem('ENABLE_DEMO_DATA', 'true')
+    }
+  }, [])
+
+  // Update when demo data setting changes
+  useEffect(() => {
+    if (demoDataEnabled !== null) {
+      if (!demoDataEnabled) {
+        setBusinessTerms([])
+      } else {
+        setBusinessTerms(mockBusinessTerms)
+      }
+    }
+  }, [demoDataEnabled])
+
+  // Listen for demo data setting changes from settings page
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ENABLE_DEMO_DATA') {
+        const enabled = e.newValue ? JSON.parse(e.newValue) : true
+        setDemoDataEnabled(enabled)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  const filteredTerms = businessTerms.filter((term) => {
     const matchesSearch =
       term.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       term.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -97,6 +145,22 @@ export function BusinessTermsList() {
     const matchesCategory = selectedCategory === "All" || term.category === selectedCategory
     return matchesSearch && matchesCategory
   })
+
+  // If a termId is provided, prioritize showing it and scroll into view
+  const orderedTerms = useMemo(() => {
+    if (!focusedTermId) return filteredTerms
+    const idx = filteredTerms.findIndex(t => t.id === focusedTermId)
+    if (idx === -1) return filteredTerms
+    const copy = filteredTerms.slice()
+    const [term] = copy.splice(idx, 1)
+    return [term, ...copy]
+  }, [filteredTerms, focusedTermId])
+
+  useEffect(() => {
+    if (focusedRef.current) {
+      focusedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [orderedTerms.length, focusedTermId])
 
   return (
     <div className="space-y-6">
@@ -109,11 +173,11 @@ export function BusinessTermsList() {
           <div className="flex items-center gap-6 pt-2">
             <div className="flex items-center gap-2 text-sm">
               <BookOpen className="h-4 w-4 text-blue-500" />
-              <span className="text-blue-700 dark:text-blue-400 font-medium">{mockBusinessTerms.length} terms defined</span>
+              <span className="text-blue-700 dark:text-blue-400 font-medium">{businessTerms.length} terms defined</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Users className="h-4 w-4 text-green-500" />
-              <span className="text-green-700 dark:text-green-400 font-medium">{new Set(mockBusinessTerms.map((term) => term.owner)).size} contributors</span>
+              <span className="text-green-700 dark:text-green-400 font-medium">{new Set(businessTerms.map((term) => term.owner)).size} contributors</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <TrendingUp className="h-4 w-4 text-purple-500" />
@@ -170,7 +234,7 @@ export function BusinessTermsList() {
 
       {/* Terms Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTerms.map((term) => {
+        {orderedTerms.map((term, i) => {
           const categoryColors = {
             Customer: 'from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50',
             Sales: 'from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50',
@@ -185,8 +249,13 @@ export function BusinessTermsList() {
             Marketing: 'text-orange-700 dark:text-orange-300'
           }
 
+          const isFocused = focusedTermId && term.id === focusedTermId
           return (
-            <Card key={term.id} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-0 shadow-sm bg-gradient-to-br ${categoryColors[term.category as keyof typeof categoryColors] || 'from-gray-50 to-gray-100 dark:from-gray-950/50 dark:to-gray-900/50'}`}>
+            <Card
+              key={term.id}
+              ref={isFocused ? focusedRef : null}
+              className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border ${isFocused ? 'border-blue-400 ring-2 ring-blue-200' : 'border-0'} shadow-sm bg-gradient-to-br ${categoryColors[term.category as keyof typeof categoryColors] || 'from-gray-50 to-gray-100 dark:from-gray-950/50 dark:to-gray-900/50'}`}
+            >
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 space-y-2">
@@ -284,20 +353,46 @@ export function BusinessTermsList() {
         })}
       </div>
 
-      {filteredTerms.length === 0 && (
+      {filteredTerms.length === 0 && demoDataEnabled !== null && (
         <div className="text-center py-12">
-          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No terms found</h3>
-          <p className="text-muted-foreground mb-4">
-            {searchQuery || selectedCategory !== "All"
-              ? "Try adjusting your search or filter criteria."
-              : "Get started by creating your first business term."}
-          </p>
-          {!searchQuery && selectedCategory === "All" && (
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Term
-            </Button>
+          {demoDataEnabled ? (
+            <>
+              <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No terms found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery || selectedCategory !== "All"
+                  ? "Try adjusting your search or filter criteria."
+                  : "Get started by creating your first business term."}
+              </p>
+              {!searchQuery && selectedCategory === "All" && (
+                <Button onClick={() => setShowAddDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Term
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No Business Terms Available</h3>
+              <p className="text-muted-foreground mb-4">
+                Demo data is disabled and no real business terms are configured yet.
+              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  To see sample data, enable demo data in{" "}
+                  <a href="/settings" className="text-primary hover:underline">
+                    Settings
+                  </a>
+                </p>
+                {!searchQuery && selectedCategory === "All" && (
+                  <Button onClick={() => setShowAddDialog(true)} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Term
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

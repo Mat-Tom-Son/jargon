@@ -50,29 +50,8 @@ export function GovernanceContent() {
         setTerms(transformedTerms);
       } catch (err) {
         console.error('Failed to fetch terms:', err);
-        setError('Failed to load terms. Using sample data.');
-
-        // Fallback to sample data
-        setTerms([
-          {
-            id: 'active_customer',
-            name: 'Active Customer',
-            businessDefinition: 'A customer with a paid subscription in the last 90 days who has not churned',
-            examples: [
-              'Customer with subscription renewed in last 30 days',
-              'Customer who upgraded their plan this quarter'
-            ],
-            counterExamples: [
-              'Trial user who hasn\'t converted',
-              'Customer who churned last month',
-              'Free tier user'
-            ],
-            owner: 'Data Stewardship Team',
-            status: 'approved',
-            lastReviewed: '2024-01-15',
-            reviewCycle: 'quarterly'
-          }
-        ]);
+        setError('Failed to load terms. Please check if the backend is running.');
+        setTerms([]); // Empty array instead of sample data
       } finally {
         setLoading(false);
       }

@@ -6,8 +6,11 @@ import { buildOpenAPI } from '@translation/codegen/src/openapiBuilder';
 import { checkPolicy } from '@translation/policy/src/opaClient';
 import { SalesforceConnector } from '@translation/connectors/src/salesforce';
 import { RestConnector } from '@translation/connectors/src/rest';
+import { SqlConnector } from '@translation/connectors/src/sql';
 import { SemanticDebtAssessor } from '@translation/semantic-debt/src/assessment';
 import { SemanticDebtCalculator } from '@translation/semantic-debt/src/semanticDebtCalculator';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Construct an Express router exposing the translation API.  This
@@ -18,20 +21,44 @@ import { SemanticDebtCalculator } from '@translation/semantic-debt/src/semanticD
 export function makeRouter() {
   const r = Router();
 
-  // Boot two sources: Salesforce and a generic REST API.  These
-  // connectors are stubs; you should replace the configuration
-  // parameters with real credentials and endpoints.
+  // Boot data sources: PostgreSQL, Salesforce, and REST API
+  // Replace configuration parameters with your real credentials
+  const db = new SqlConnector('postgres', {
+    client: 'pg',
+    connection: process.env.DATABASE_URL || {
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      database: process.env.DB_NAME || 'jargon_dev',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'password'
+    }
+  });
+
   const sf = new SalesforceConnector('sf', {
     instanceUrl: process.env.SALESFORCE_INSTANCE_URL || 'https://example.my.salesforce.com',
     accessToken: process.env.SALESFORCE_ACCESS_TOKEN || 'x'
   });
+
   const rest = new RestConnector('catalog', {
-    baseUrl: process.env.REST_API_BASE_URL || 'https://api.example.com',
-    manifest: { endpoints: ['/customers', '/orders'] }
+    baseUrl: process.env.REST_API_BASE_URL || 'https://jsonplaceholder.typicode.com',
+    manifest: { endpoints: ['/users', '/posts'] }
+  });
+  const openfda = new RestConnector('openfda', {
+    baseUrl: process.env.OPENFDA_BASE_URL || 'https://api.fda.gov',
+    manifest: { endpoints: ['/drug/ndc.json', '/device/510k.json', '/drug/enforcement.json'] }
   });
 
-  const connectors = { sf, catalog: rest } as const;
+  const connectors = { postgres: db, sf, catalog: rest, openfda } as const;
   const sources = {
+    postgres: {
+      id: 'postgres',
+      kind: 'sql' as const,
+      name: 'PostgreSQL Database',
+      config: {
+        host: process.env.DB_HOST || 'localhost',
+        database: process.env.DB_NAME || 'jargon_dev'
+      }
+    },
     sf: {
       id: 'sf',
       kind: 'salesforce' as const,
@@ -42,7 +69,13 @@ export function makeRouter() {
       id: 'catalog',
       kind: 'rest' as const,
       name: 'Catalog API',
-      config: { baseUrl: process.env.REST_API_BASE_URL || 'https://api.example.com' }
+      config: { baseUrl: process.env.REST_API_BASE_URL || 'https://jsonplaceholder.typicode.com' }
+    },
+    openfda: {
+      id: 'openfda',
+      kind: 'rest' as const,
+      name: 'openFDA API',
+      config: { baseUrl: process.env.OPENFDA_BASE_URL || 'https://api.fda.gov' }
     }
   } as const;
 
@@ -57,6 +90,20 @@ export function makeRouter() {
       { id: 't_active', name: 'Active Customer', description: 'Customer with current subscription and not churned' }
     ],
     rules: [
+      {
+        id: 'r_db_customer',
+        termId: 't_active',
+        sourceId: 'postgres',
+        object: 'customers',
+        expression: 'is_active = true AND status != \'churned\'',
+        fields: ['id', 'name', 'region', 'is_active'],
+        fieldMappings: {
+          id: 'id',
+          name: 'name',
+          region: 'region',
+          is_active: 'is_active'
+        }
+      },
       {
         id: 'r_sf_customer',
         termId: 't_active',
@@ -84,10 +131,86 @@ export function makeRouter() {
           region: 'region',
           is_active: "status = 'active'"
         }
+      },
+      {
+        id: 'r_openfda_ndc',
+        termId: 't_active',
+        sourceId: 'openfda',
+        object: 'drug/ndc.json',
+        expression: 'brand_name:*',
+        fields: ['brand_name', 'generic_name', 'product_ndc', 'dosage_form', 'route'],
+        fieldMappings: {
+          id: 'product_ndc',
+          name: 'brand_name',
+          region: 'route[0]',
+          is_active: 'true'
+        }
       }
     ],
     constraints: { defaultLimit: 50, maxLimit: 200 }
   } as any;
+
+  // Merge in file-configured sources, terms, and rules to avoid hardcoding
+  try {
+    const dataDir = path.resolve(process.cwd(), 'config', 'data');
+    const readJson = (file: string) => {
+      const p = path.join(dataDir, file);
+      if (!fs.existsSync(p)) return null;
+      const raw = fs.readFileSync(p, 'utf8');
+      return JSON.parse(raw);
+    };
+    const envSubstitute = (obj: any): any => {
+      if (obj == null || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(envSubstitute);
+      const out: any = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (typeof v === 'string') {
+          out[k] = v.replace(/\$\{([^}]+)\}/g, (_m, name) => process.env[String(name)] ?? '');
+        } else {
+          out[k] = envSubstitute(v);
+        }
+      }
+      return out;
+    };
+
+    const fileSources = readJson('sources.json') as any[] | null;
+    if (fileSources?.length) {
+      for (const s of fileSources) {
+        const src = envSubstitute(s);
+        // Register source ref for /sources
+        (sources as any)[src.id] = { id: src.id, kind: src.kind, name: src.name, config: src.config };
+        // Register connector for engine
+        if (src.kind === 'rest') {
+          (connectors as any)[src.id] = new RestConnector(src.id, { baseUrl: src.config.baseUrl, manifest: src.metadata?.endpoints ? { endpoints: src.metadata.endpoints } : undefined });
+        } else if (src.kind === 'salesforce') {
+          (connectors as any)[src.id] = new SalesforceConnector(src.id, { instanceUrl: src.config.instanceUrl, accessToken: src.config.accessToken || 'x' });
+        } else if (src.kind === 'sql') {
+          (connectors as any)[src.id] = new SqlConnector(src.id, { client: 'pg' as any, connection: src.config });
+        }
+      }
+    }
+
+    const fileTerms = readJson('terms.json') as any[] | null;
+    if (fileTerms?.length) {
+      for (const t of fileTerms) {
+        if (!(contract.terms as any[]).some((et: any) => et.id === t.id)) {
+          (contract.terms as any[]).push(t);
+        }
+      }
+    }
+
+    const fileRules = readJson('rules.json') as any[] | null;
+    if (fileRules?.length) {
+      for (const r0 of fileRules) {
+        if (!(contract.rules as any[]).some((er: any) => er.id === r0.id)) {
+          (contract.rules as any[]).push(r0);
+        }
+      }
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('File-config merge skipped:', e);
+  }
 
   const engine = new Engine(connectors as any, sources as any, contract);
 

@@ -1,0 +1,87 @@
+[
+  {
+    "id": "r_postgres_active_customer",
+    "termId": "t_active_customer",
+    "sourceId": "postgres",
+    "object": "customers",
+    "expression": "is_active = true AND status != 'churned'",
+    "fields": [
+      "id",
+      "name",
+      "region",
+      "is_active"
+    ],
+    "fieldMappings": {
+      "id": "id",
+      "name": "name",
+      "region": "region",
+      "is_active": "is_active"
+    },
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "r_openfda_ndc_brand",
+    "termId": "t_active_customer",
+    "sourceId": "openfda_v1",
+    "object": "drug/ndc.json",
+    "expression": "brand_name:*",
+    "fields": [
+      "product_ndc",
+      "brand_name",
+      "generic_name",
+      "dosage_form",
+      "route"
+    ],
+    "fieldMappings": {
+      "id": "product_ndc",
+      "name": "brand_name",
+      "region": "route",
+      "is_active": "true"
+    },
+    "created_at": "2025-09-12T00:00:00.000Z",
+    "updated_at": "2025-09-12T00:00:00.000Z"
+  },
+  {
+    "id": "r_salesforce_active_customer",
+    "termId": "t_active_customer",
+    "sourceId": "salesforce_demo",
+    "object": "Account",
+    "expression": "Active__c = true AND Status__c != 'Churned'",
+    "fields": [
+      "Id",
+      "Name",
+      "BillingCountry",
+      "Active__c"
+    ],
+    "fieldMappings": {
+      "id": "Id",
+      "name": "Name",
+      "region": "BillingCountry",
+      "is_active": "Active__c"
+    },
+    "created_at": "2025-01-01T00:00:00.000Z",
+    "updated_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "termId": "term_1757613227609",
+    "sourceId": "postgres",
+    "object": "customers",
+    "expression": "is_active = true AND status = 'vip'",
+    "fields": [
+      "id",
+      "name",
+      "region",
+      "is_active"
+    ],
+    "fieldMappings": {
+      "id": "id",
+      "name": "name",
+      "region": "region",
+      "is_active": "is_active"
+    },
+    "id": "rule_1757613235882",
+    "created_at": "2025-09-11T17:53:55.882Z",
+    "updated_at": "2025-09-11T17:53:55.882Z"
+  }
+]

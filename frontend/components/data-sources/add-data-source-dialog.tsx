@@ -74,13 +74,39 @@ export function AddDataSourceDialog({ open, onOpenChange }: AddDataSourceDialogP
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = () => {
-    // In real app, this would call the API
-    console.log("Creating data source:", { type: selectedType, ...formData })
-    onOpenChange(false)
-    setStep(1)
-    setSelectedType("")
-    setFormData({})
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/sources', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          kind: selectedType,
+          config: Object.fromEntries(
+            Object.entries(formData).filter(([key]) =>
+              !['name', 'description'].includes(key)
+            )
+          )
+        }),
+      });
+
+      if (response.ok) {
+        const newSource = await response.json();
+        console.log("Created data source:", newSource);
+        onOpenChange(false);
+        setStep(1);
+        setSelectedType("");
+        setFormData({});
+        // Optionally trigger a refresh of the parent component
+        window.location.reload(); // Simple refresh for now
+      } else {
+        console.error("Failed to create data source");
+      }
+    } catch (error) {
+      console.error("Error creating data source:", error);
+    }
   }
 
   const selectedTypeConfig = sourceTypes.find((t) => t.id === selectedType)

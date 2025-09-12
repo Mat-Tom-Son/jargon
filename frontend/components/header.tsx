@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Bell, User, Settings, LogOut, HelpCircle, Moon, Sun } from "lucide-react"
+import { User, Settings, LogOut, HelpCircle, Moon, Sun } from "lucide-react"
 import { usePathname } from "next/navigation"
 
 const getPageTitle = (pathname: string) => {
@@ -37,41 +37,13 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Notifications Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">3</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex flex-col items-start p-3">
-              <div className="font-medium">Data Source Connected</div>
-              <div className="text-sm text-muted-foreground">Salesforce Production is now active</div>
-              <div className="text-xs text-muted-foreground mt-1">2 minutes ago</div>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start p-3">
-              <div className="font-medium">Mapping Rule Validated</div>
-              <div className="text-sm text-muted-foreground">Active Customer → Account.Status validated</div>
-              <div className="text-xs text-muted-foreground mt-1">5 minutes ago</div>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start p-3">
-              <div className="font-medium">Semantic Debt Alert</div>
-              <div className="text-sm text-muted-foreground">Term coverage dropped below 70%</div>
-              <div className="text-xs text-muted-foreground mt-1">1 hour ago</div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         {/* User Profile Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder-user.jpg" alt="User" />
+                <AvatarImage src="/user-avatar.png" alt="User" />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   <User className="h-4 w-4" />
                 </AvatarFallback>

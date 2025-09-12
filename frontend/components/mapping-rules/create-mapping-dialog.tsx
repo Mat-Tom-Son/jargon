@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,35 +23,18 @@ interface CreateMappingDialogProps {
   onCreateMapping?: (mapping: any) => void
 }
 
-// Mock data
-const mockTerms = [
-  { id: "1", name: "Active Customer", category: "Customer" },
-  { id: "2", name: "Opportunity Value", category: "Sales" },
-  { id: "3", name: "Monthly Recurring Revenue", category: "Finance" },
-  { id: "4", name: "Lead Score", category: "Marketing" },
-]
 
-const mockSources = [
-  { id: "1", name: "Salesforce Production", type: "REST" },
-  { id: "2", name: "Customer Database", type: "PostgreSQL" },
-  { id: "3", name: "Analytics API", type: "REST" },
-]
-
+// Mock objects for now (would be fetched from data source schema in real implementation)
 const mockObjects = {
-  "1": [
-    { name: "Account", recordCount: 1247 },
-    { name: "Contact", recordCount: 3891 },
-    { name: "Opportunity", recordCount: 892 },
-  ],
-  "2": [
+  "postgres": [
     { name: "customers", recordCount: 2156 },
     { name: "orders", recordCount: 8934 },
     { name: "subscriptions", recordCount: 1543 },
   ],
-  "3": [
-    { name: "leads", recordCount: 4521 },
-    { name: "events", recordCount: 125678 },
-    { name: "campaigns", recordCount: 234 },
+  "salesforce_demo": [
+    { name: "Account", recordCount: 1247 },
+    { name: "Contact", recordCount: 3891 },
+    { name: "Opportunity", recordCount: 892 },
   ],
 }
 
@@ -63,6 +46,10 @@ const steps = [
 ]
 
 export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: CreateMappingDialogProps) {
+  // Real data state
+  const [realTerms, setRealTerms] = useState([])
+  const [realSources, setRealSources] = useState([])
+
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
     termId: "",
@@ -71,8 +58,36 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
     fieldMappings: [] as Array<{ semantic: string; concrete: string; expression: string }>,
   })
 
-  const selectedTerm = mockTerms.find((t) => t.id === formData.termId)
-  const selectedSource = mockSources.find((s) => s.id === formData.sourceId)
+  // Fetch real data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [termsRes, sourcesRes] = await Promise.all([
+          fetch('http://localhost:3001/terms'),
+          fetch('http://localhost:3001/sources')
+        ]);
+
+        if (termsRes.ok) {
+          const terms = await termsRes.json();
+          setRealTerms(terms);
+        }
+
+        if (sourcesRes.ok) {
+          const sources = await sourcesRes.json();
+          setRealSources(sources);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    if (open) {
+      fetchData();
+    }
+  }, [open]);
+
+  const selectedTerm = realTerms.find((t) => t.id === formData.termId)
+  const selectedSource = realSources.find((s) => s.id === formData.sourceId)
   const availableObjects = formData.sourceId ? mockObjects[formData.sourceId as keyof typeof mockObjects] || [] : []
 
   const handleNext = () => {
@@ -87,38 +102,75 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
     }
   }
 
-  const handleSubmit = () => {
-    if (onCreateMapping) {
-      const selectedTerm = mockTerms.find(t => t.id === formData.termId)
-      const selectedSource = mockSources.find(s => s.id === formData.sourceId)
+  const handleSubmit = async () => {
+    try {
+      const selectedTerm = realTerms.find(t => t.id === formData.termId)
+      const selectedSource = realSources.find(s => s.id === formData.sourceId)
 
-      // Create mapping with all the field mappings that were configured
-      const mappingData = {
-        termName: selectedTerm?.name || "",
-        termCategory: selectedTerm?.category || "",
-        sourceName: selectedSource?.name || "",
-        sourceType: selectedSource?.type || "",
-        objectName: formData.objectName,
-        fieldMappings: formData.fieldMappings.length > 0 ? formData.fieldMappings : [
-          {
-            semantic: selectedTerm?.name || "",
-            concrete: formData.objectName,
-            expression: formData.objectName
-          }
-        ],
+      // Create the mapping rule data
+      const ruleData = {
+        termId: formData.termId,
+        sourceId: formData.sourceId,
+        object: formData.objectName,
+        expression: `is_active = true`, // Default expression - would be more sophisticated in real implementation
+        fields: ['id', 'name', 'region', 'is_active'], // Default fields
+        fieldMappings: {
+          id: 'id',
+          name: 'name',
+          region: 'region',
+          is_active: 'is_active'
+        }
+      };
+
+      // Save to API
+      const response = await fetch('http://localhost:3001/rules', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ruleData),
+      });
+
+      if (response.ok) {
+        const newRule = await response.json();
+        console.log("Created mapping rule:", newRule);
+
+        // Call the callback if provided (for compatibility)
+        if (onCreateMapping) {
+          const mappingData = {
+            termName: selectedTerm?.name || "",
+            termCategory: selectedTerm?.category || "",
+            sourceName: selectedSource?.name || "",
+            sourceType: selectedSource?.kind || "",
+            objectName: formData.objectName,
+            fieldMappings: formData.fieldMappings.length > 0 ? formData.fieldMappings : [
+              {
+                semantic: selectedTerm?.name || "",
+                concrete: formData.objectName,
+                expression: formData.objectName
+              }
+            ],
+          };
+          onCreateMapping(mappingData);
+        }
+
+        onOpenChange(false);
+        setCurrentStep(1);
+        setFormData({
+          termId: "",
+          sourceId: "",
+          objectName: "",
+          fieldMappings: [],
+        });
+
+        // Simple refresh for now
+        window.location.reload();
+      } else {
+        console.error("Failed to create mapping rule");
       }
-
-      onCreateMapping(mappingData)
+    } catch (error) {
+      console.error("Error creating mapping rule:", error);
     }
-
-    onOpenChange(false)
-    setCurrentStep(1)
-    setFormData({
-      termId: "",
-      sourceId: "",
-      objectName: "",
-      fieldMappings: [],
-    })
   }
 
   const canProceed = () => {
@@ -179,7 +231,7 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
                       <SelectValue placeholder="Select a business term" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockTerms.map((term) => (
+                      {realTerms.map((term) => (
                         <SelectItem key={term.id} value={term.id}>
                           <div>
                             <div className="font-medium">{term.name}</div>
@@ -201,11 +253,11 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
                       <SelectValue placeholder="Select a data source" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockSources.map((source) => (
+                      {realSources.map((source) => (
                         <SelectItem key={source.id} value={source.id}>
                           <div>
                             <div className="font-medium">{source.name}</div>
-                            <div className="text-sm text-muted-foreground">{source.type}</div>
+                            <div className="text-sm text-muted-foreground">{source.kind}</div>
                           </div>
                         </SelectItem>
                       ))}

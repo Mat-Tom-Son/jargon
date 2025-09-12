@@ -3,16 +3,17 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Database, BookOpen, GitBranch, TestTube, BarChart3, CheckCircle, Users } from "lucide-react"
+import { Database, BookOpen, GitBranch, TestTube, BarChart3, CheckCircle, Users, Settings } from "lucide-react"
 
 const navigation = [
   { name: "Overview", href: "/", icon: BarChart3 },
   { name: "Data Sources", href: "/sources", icon: Database },
   { name: "Business Terms", href: "/terms", icon: BookOpen },
   { name: "Mapping Rules", href: "/mappings", icon: GitBranch },
-  { name: "Query Testing", href: "/test", icon: TestTube },
+  { name: "Query Builder", href: "/test", icon: TestTube },
   { name: "Semantic Debt", href: "/semantic-debt", icon: CheckCircle },
   { name: "Governance", href: "/governance", icon: Users },
+  { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 export function Sidebar() {

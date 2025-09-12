@@ -29,8 +29,7 @@ export class SqlConnector implements Connector {
     }
     builder = builder.limit(nativeQuery.limit ?? 50);
     const { sql, bindings } = builder.toSQL().toNative();
-    // const rows = await this.db.raw(sql, bindings).then(r => (r.rows ?? r[0]));
-    const rows = [{ id: 1, name: 'ACME', region: 'US' }];
+    const rows = await this.db.raw(sql, bindings).then(r => (r.rows ?? r[0]));
     return { rows, step: makeStep(this.id, { ...nativeQuery, sourceId: this.id, fields: nativeQuery.select, operators: [] } as any) };
   }
 }

@@ -1,51 +1,193 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Database, Globe, Server, MoreHorizontal, Eye, Settings, Trash2, CheckCircle, Clock, AlertCircle, RefreshCw, Zap } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Plus, Database, Globe, Server, MoreHorizontal, Eye, Settings, Trash2, CheckCircle, Clock, AlertCircle, RefreshCw, Zap, AlertTriangle, Copy, GitBranch, Search, Filter, Star, Activity, BarChart3, Users } from "lucide-react"
 import { AddDataSourceDialog } from "./add-data-source-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 
-// Mock data - in real app this would come from API
-const mockDataSources = [
-  {
-    id: "1",
-    name: "Salesforce Production",
-    type: "REST",
-    status: "active",
-    description: "Production Salesforce instance",
-    lastSync: "2 hours ago",
-    objectCount: 15,
-    icon: Globe,
-  },
-  {
-    id: "2",
-    name: "Customer Database",
-    type: "PostgreSQL",
-    status: "active",
-    description: "Main customer data warehouse",
-    lastSync: "30 minutes ago",
-    objectCount: 8,
-    icon: Database,
-  },
-  {
-    id: "3",
-    name: "Analytics API",
-    type: "REST",
-    status: "pending",
-    description: "Internal analytics service",
-    lastSync: "Never",
-    objectCount: 0,
-    icon: Server,
-  },
-]
+interface DataSource {
+  id: string
+  name: string
+  kind: string
+  version: string
+  environment: string
+  status: string
+  description: string
+  tags: string[]
+  config: any
+  metadata?: {
+    tables?: string[]
+    objects?: string[]
+    endpoints?: string[]
+    lastSync?: string
+    recordCount?: number
+    responseTime?: number
+  }
+  created_at: string
+  updated_at: string
+  parent_id?: string
+}
 
 export function DataSourcesList() {
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [dataSources, setDataSources] = useState<DataSource[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedSource, setSelectedSource] = useState<DataSource | null>(null)
+  const [showCloneDialog, setShowCloneDialog] = useState(false)
+  const [showVersionDialog, setShowVersionDialog] = useState(false)
+  const [cloneName, setCloneName] = useState("")
+  const [cloneEnvironment, setCloneEnvironment] = useState("")
+  const [versionName, setVersionName] = useState("")
+  const [versionDescription, setVersionDescription] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterEnvironment, setFilterEnvironment] = useState<string>("all")
+  const [filterKind, setFilterKind] = useState<string>("all")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+
+  // Load data sources from API
+  useEffect(() => {
+    loadDataSources()
+  }, [])
+
+  const loadDataSources = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('http://localhost:3001/sources')
+      if (response.ok) {
+        const sources = await response.json()
+        setDataSources(sources)
+      } else {
+        console.error('Failed to load data sources')
+        setDataSources([])
+      }
+    } catch (error) {
+      console.error('Error loading data sources:', error)
+      setDataSources([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleClone = async () => {
+    if (!selectedSource || !cloneName.trim()) return
+
+    try {
+      const response = await fetch(`http://localhost:3001/sources/${selectedSource.id}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: cloneName,
+          environment: cloneEnvironment || selectedSource.environment
+        })
+      })
+
+      if (response.ok) {
+        const newSource = await response.json()
+        setDataSources(prev => [...prev, newSource])
+        setShowCloneDialog(false)
+        setCloneName("")
+        setCloneEnvironment("")
+        setSelectedSource(null)
+      }
+    } catch (error) {
+      console.error('Error cloning data source:', error)
+    }
+  }
+
+  const handleCreateVersion = async () => {
+    if (!selectedSource) return
+
+    try {
+      const response = await fetch(`http://localhost:3001/sources/${selectedSource.id}/version`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: versionName || `${selectedSource.name} v${Date.now()}`,
+          description: versionDescription,
+          version: `1.0.${Date.now()}`
+        })
+      })
+
+      if (response.ok) {
+        const newVersion = await response.json()
+        setDataSources(prev => [...prev, newVersion])
+        setShowVersionDialog(false)
+        setVersionName("")
+        setVersionDescription("")
+        setSelectedSource(null)
+      }
+    } catch (error) {
+      console.error('Error creating version:', error)
+    }
+  }
+
+  const handleToggleStatus = async (source: DataSource) => {
+    try {
+      const newStatus = source.status === 'active' ? 'inactive' : 'active'
+      const response = await fetch(`http://localhost:3001/sources/${source.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (response.ok) {
+        const updatedSource = await response.json()
+        setDataSources(prev => prev.map(s => s.id === source.id ? updatedSource : s))
+      }
+    } catch (error) {
+      console.error('Error updating source status:', error)
+    }
+  }
+
+  const getFilteredSources = () => {
+    return dataSources.filter(source => {
+      const matchesSearch = source.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          source.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesEnvironment = filterEnvironment === 'all' || source.environment === filterEnvironment
+      const matchesKind = filterKind === 'all' || source.kind === filterKind
+      const matchesStatus = filterStatus === 'all' || source.status === filterStatus
+
+      return matchesSearch && matchesEnvironment && matchesKind && matchesStatus
+    })
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'inactive':
+        return <Clock className="h-4 w-4 text-gray-500" />
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />
+      default:
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />
+    }
+  }
+
+  const getKindIcon = (kind: string) => {
+    switch (kind) {
+      case 'sql':
+        return <Database className="h-4 w-4" />
+      case 'salesforce':
+        return <Users className="h-4 w-4" />
+      case 'rest':
+        return <Globe className="h-4 w-4" />
+      default:
+        return <Server className="h-4 w-4" />
+    }
+  }
+
+  const filteredSources = getFilteredSources()
 
   return (
     <div className="space-y-6">
@@ -53,27 +195,33 @@ export function DataSourcesList() {
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Data Sources</h1>
           <p className="text-muted-foreground text-base max-w-2xl">
-            Manage and configure your heterogeneous data source connections. Connect to Salesforce, databases, REST APIs, and more.
+            Manage and configure your heterogeneous data source connections. Connect to Salesforce, databases, REST APIs, and more with full versioning and lineage support.
           </p>
           <div className="flex items-center gap-6 pt-2">
             <div className="flex items-center gap-2 text-sm">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-green-700 dark:text-green-400 font-medium">2 of 3 sources active</span>
+              <span className="text-green-700 dark:text-green-400 font-medium">
+                {dataSources.filter(s => s.status === 'active').length} of {dataSources.length} sources active
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Zap className="h-4 w-4 text-blue-500" />
-              <span className="text-blue-700 dark:text-blue-400 font-medium">23 objects discovered</span>
+              <GitBranch className="h-4 w-4 text-purple-500" />
+              <span className="text-purple-700 dark:text-purple-400 font-medium">
+                {dataSources.length} total sources
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <RefreshCw className="h-4 w-4 text-orange-500" />
-              <span className="text-orange-700 dark:text-orange-400 font-medium">Last sync: 30 min ago</span>
+              <Activity className="h-4 w-4 text-blue-500" />
+              <span className="text-blue-700 dark:text-blue-400 font-medium">
+                Full lineage tracking
+              </span>
             </div>
           </div>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Sync All
+          <Button variant="outline" onClick={loadDataSources} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -82,47 +230,116 @@ export function DataSourcesList() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockDataSources.map((source) => {
-          const Icon = source.icon
-          const isActive = source.status === "active"
-          const isPending = source.status === "pending"
+      {/* Filters and Search */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search data sources..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Select value={filterEnvironment} onValueChange={setFilterEnvironment}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Environment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Environments</SelectItem>
+                  <SelectItem value="development">Development</SelectItem>
+                  <SelectItem value="staging">Staging</SelectItem>
+                  <SelectItem value="production">Production</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterKind} onValueChange={setFilterKind}>
+                <SelectTrigger className="w-28">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="sql">SQL</SelectItem>
+                  <SelectItem value="salesforce">Salesforce</SelectItem>
+                  <SelectItem value="rest">REST</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-28">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-          return (
-            <Card key={source.id} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-0 shadow-sm ${
-              isActive
-                ? 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50'
-                : isPending
-                ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950/50 dark:to-yellow-900/50'
-                : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950/50 dark:to-gray-900/50'
-            }`}>
+      {/* Data Sources Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Loading data sources...</span>
+        </div>
+      ) : (
+        filteredSources.length === 0 ? (
+          <div className="text-center py-12">
+            <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">No data sources found</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm || filterEnvironment !== 'all' || filterKind !== 'all' || filterStatus !== 'all'
+                ? "Try adjusting your filters or search terms."
+                : "Get started by adding your first data source."
+              }
+            </p>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Data Source
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredSources.map((source) => {
+            const isActive = source.status === "active"
+            const isInactive = source.status === "inactive"
+
+            return (
+              <Card key={source.id} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-0 shadow-sm ${
+                isActive
+                  ? 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50'
+                  : isInactive
+                  ? 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950/50 dark:to-gray-900/50'
+                  : 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950/50 dark:to-yellow-900/50'
+              }`}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
                       isActive
                         ? 'bg-green-500/10'
-                        : isPending
-                        ? 'bg-yellow-500/10'
-                        : 'bg-gray-500/10'
+                        : isInactive
+                        ? 'bg-gray-500/10'
+                        : 'bg-yellow-500/10'
                     }`}>
-                      <Icon className={`h-5 w-5 ${
-                        isActive
-                          ? 'text-green-600 dark:text-green-400'
-                          : isPending
-                          ? 'text-yellow-600 dark:text-yellow-400'
-                          : 'text-gray-600 dark:text-gray-400'
-                      }`} />
+                      {getKindIcon(source.kind)}
                     </div>
                     <div>
                       <CardTitle className={`text-lg ${
                         isActive
                           ? 'text-green-900 dark:text-green-100'
-                          : isPending
-                          ? 'text-yellow-900 dark:text-yellow-100'
-                          : 'text-gray-900 dark:text-gray-100'
+                          : isInactive
+                          ? 'text-gray-900 dark:text-gray-100'
+                          : 'text-yellow-900 dark:text-yellow-100'
                       }`}>{source.name}</CardTitle>
-                      <CardDescription className="font-medium">{source.type}</CardDescription>
+                      <CardDescription className="font-medium">{source.kind} • {source.environment}</CardDescription>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -163,27 +380,31 @@ export function DataSourcesList() {
                     <div className="flex items-center gap-2">
                       {isActive ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : isPending ? (
-                        <Clock className="h-4 w-4 text-yellow-500" />
+                      ) : isInactive ? (
+                        <Clock className="h-4 w-4 text-gray-500" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-gray-500" />
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
                       )}
                       <Badge variant={isActive ? "default" : "secondary"} className={
                         isActive
                           ? 'bg-green-500 hover:bg-green-600'
-                          : isPending
-                          ? 'bg-yellow-500 hover:bg-yellow-600'
-                          : 'bg-gray-500 hover:bg-gray-600'
+                          : isInactive
+                          ? 'bg-gray-500 hover:bg-gray-600'
+                          : 'bg-yellow-500 hover:bg-yellow-600'
                       }>
                         {source.status}
                       </Badge>
                     </div>
-                    <span className="text-sm font-medium text-muted-foreground">{source.objectCount} objects</span>
+                    {source.metadata?.recordCount && (
+                      <span className="text-sm font-medium text-muted-foreground">{source.metadata.recordCount} records</span>
+                    )}
                   </div>
 
                   {/* Sync Status */}
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Last sync: {source.lastSync}</span>
+                    {source.metadata?.lastSync && (
+                      <span className="text-muted-foreground">Last sync: {new Date(source.metadata.lastSync).toLocaleDateString()}</span>
+                    )}
                     {isActive && (
                       <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -192,8 +413,8 @@ export function DataSourcesList() {
                     )}
                   </div>
 
-                  {/* Discovery Progress for Pending */}
-                  {isPending && (
+                  {/* Discovery Progress for Non-Active */}
+                  {source.status !== 'active' && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Schema Discovery</span>
@@ -214,9 +435,12 @@ export function DataSourcesList() {
             </Card>
           )
         })}
-      </div>
+          </div>
+        )
+      )
+      }
 
       <AddDataSourceDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
     </div>
-  )
+  );
 }

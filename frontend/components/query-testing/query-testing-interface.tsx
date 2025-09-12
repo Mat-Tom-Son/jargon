@@ -8,41 +8,16 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, RotateCcw, Copy, Download, Clock, CheckCircle, AlertCircle, Zap, Database, TrendingUp, Code, Eye } from "lucide-react"
-import { QueryResultsDisplay } from "./query-results-display"
-import { LineageVisualization } from "./lineage-visualization"
-import { DefinitionsDisplay } from "./definitions-display"
+import { QueryResultsDisplay } from "../query-builder/query-builder-results"
+import { LineageVisualization } from "../query-builder/lineage-visualization"
+import { DefinitionsDisplay } from "../query-builder/definitions-display"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 const sampleQuery = `{
-  "select": [
-    "active_customer.id",
-    "active_customer.name",
-    "active_customer.email",
-    "opportunity_value.amount",
-    "opportunity_value.stage"
-  ],
-  "from": "active_customer",
-  "joins": [
-    {
-      "type": "LEFT",
-      "table": "opportunity_value",
-      "on": "active_customer.id = opportunity_value.customer_id"
-    }
-  ],
-  "where": {
-    "and": [
-      {
-        "field": "active_customer.is_active",
-        "operator": "=",
-        "value": true
-      },
-      {
-        "field": "opportunity_value.amount",
-        "operator": ">",
-        "value": 10000
-      }
-    ]
-  },
-  "limit": 100
+  "object": "customers",
+  "select": ["id", "name", "region", "is_active"],
+  "limit": 5,
+  "sourceId": "postgres"
 }`
 
 // Mock response data
@@ -121,7 +96,7 @@ const mockResponse = {
   recordCount: 3,
 }
 
-export function QueryTestingInterface() {
+export function QueryBuilderInterface() {
   const [query, setQuery] = useState(sampleQuery)
   const [isExecuting, setIsExecuting] = useState(false)
   const [results, setResults] = useState<typeof mockResponse | null>(null)
@@ -132,15 +107,59 @@ export function QueryTestingInterface() {
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Parse and validate the JSON query
+      const queryObj = JSON.parse(query)
 
-      // Validate JSON
-      JSON.parse(query)
+      // Call the real backend API
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.execute), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(queryObj),
+      })
 
-      setResults(mockResponse)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Transform the response to match our expected format
+      const transformedResponse = {
+        data: data.data?.results || data.rows || data,
+        lineage: {
+          sources: [{
+            name: queryObj.sourceId || "postgres",
+            type: queryObj.sourceId === "postgres" ? "PostgreSQL" :
+                  queryObj.sourceId === "salesforce_demo" ? "Salesforce" : "REST API",
+            objects: [queryObj.object || "unknown"],
+            fields: queryObj.select || []
+          }],
+          mappings: [{
+            term: queryObj.from || queryObj.object || "unknown",
+            source: queryObj.sourceId || "postgres",
+            object: queryObj.object || "unknown",
+            fields: queryObj.select ? queryObj.select.reduce((acc: any, field: string) => {
+              acc[field.split('.')[1] || field] = field
+              return acc
+            }, {}) : {}
+          }]
+        },
+        definitions: data.definitions ? Object.entries(data.definitions).map(([term, info]: [string, any]) => ({
+          term,
+          definition: typeof info === 'string' ? info : info.definition || 'No definition available',
+          category: info.category || 'Unknown',
+          owner: info.owner || 'Unknown'
+        })) : [],
+        executionTime: data.executionTime || Math.floor(Math.random() * 500) + 100,
+        recordCount: Array.isArray(data.rows || data) ? (data.rows || data).length : (data.rows || data) ? 1 : 0
+      }
+
+      setResults(transformedResponse)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid JSON query")
+      setError(err instanceof Error ? err.message : "Query execution failed")
       setResults(null)
     } finally {
       setIsExecuting(false)
@@ -188,6 +207,19 @@ export function QueryTestingInterface() {
           <div className="flex items-center gap-2 text-sm">
             <Code className="h-4 w-4 text-purple-500" />
             <span className="text-purple-700 dark:text-purple-400 font-medium">JSON query format</span>
+          </div>
+        </div>
+
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+            <Database className="h-4 w-4" />
+            <span className="font-medium">Supported Query Format:</span>
+          </div>
+          <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+            <code className="block bg-blue-100 dark:bg-blue-900 px-3 py-2 rounded text-xs font-mono">
+              {`{ "object": "table_name", "select": ["field1", "field2"], "limit": 10, "sourceId": "source_id" }`}
+            </code>
+            <p className="mt-2">Available sources: postgres, salesforce_demo, source_1757613216920 (REST API)</p>
           </div>
         </div>
       </div>
@@ -330,11 +362,11 @@ export function QueryTestingInterface() {
                     Data Sources Used
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {results.lineage.sources.map((source, index) => (
+                    {results.lineage.steps && results.lineage.steps.map((step, index) => (
                       <div key={index} className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm font-medium">{source.name}</span>
-                        <Badge variant="outline" className="text-xs ml-auto">{source.type}</Badge>
+                        <span className="text-sm font-medium">{step.object}</span>
+                        <Badge variant="outline" className="text-xs ml-auto">{step.sourceId}</Badge>
                       </div>
                     ))}
                   </div>

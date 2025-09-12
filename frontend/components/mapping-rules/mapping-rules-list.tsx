@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, GitBranch, MoreHorizontal, Edit, Trash2, Eye, CheckCircle, AlertCircle, Clock, TrendingUp, Zap, Database, Layers, ArrowRight } from "lucide-react"
+import { Plus, Search, GitBranch, MoreHorizontal, Edit, Trash2, Eye, CheckCircle, AlertCircle, Clock, TrendingUp, Zap, Database, Layers, ArrowRight, AlertTriangle } from "lucide-react"
 import { CreateMappingDialog } from "./create-mapping-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -87,20 +88,92 @@ const statusColors = {
 } as const
 
 export function MappingRulesList() {
+  const searchParams = useSearchParams()
+  const qpSourceId = searchParams.get('sourceId') || ''
+  const qpObject = searchParams.get('object') || ''
+  const qpTermId = searchParams.get('termId') || ''
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
   const [mappingRules, setMappingRules] = useState(mockMappingRules)
+  const [demoDataEnabled, setDemoDataEnabled] = useState<boolean | null>(null)
+  const focusedRef = useRef<HTMLDivElement | null>(null)
+
+  // Load demo data setting from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('ENABLE_DEMO_DATA')
+    if (stored !== null) {
+      const enabled = JSON.parse(stored)
+      setDemoDataEnabled(enabled)
+      if (!enabled) {
+        setMappingRules([]) // Clear demo data when disabled
+      } else {
+        setMappingRules(mockMappingRules) // Restore demo data when enabled
+      }
+    } else {
+      // If no stored value, default to true and store it
+      setDemoDataEnabled(true)
+      localStorage.setItem('ENABLE_DEMO_DATA', 'true')
+    }
+  }, [])
+
+  // Update when demo data setting changes
+  useEffect(() => {
+    if (demoDataEnabled !== null) {
+      if (!demoDataEnabled) {
+        setMappingRules([])
+      } else {
+        setMappingRules(mockMappingRules)
+      }
+    }
+  }, [demoDataEnabled])
+
+  // Listen for demo data setting changes from settings page
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ENABLE_DEMO_DATA') {
+        const enabled = e.newValue ? JSON.parse(e.newValue) : true
+        setDemoDataEnabled(enabled)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const filteredRules = mappingRules.filter((rule) => {
     const searchLower = searchQuery.toLowerCase()
-    return (
+    const matchesSearch = (
       rule.termName.toLowerCase().includes(searchLower) ||
       rule.sourceName.toLowerCase().includes(searchLower) ||
       rule.objectName.toLowerCase().includes(searchLower) ||
       rule.termCategory.toLowerCase().includes(searchLower)
     )
+    const matchesQp = (
+      (!qpSourceId || rule.sourceName.toLowerCase().includes(qpSourceId.toLowerCase())) &&
+      (!qpObject || rule.objectName.toLowerCase().includes(qpObject.toLowerCase()))
+    )
+    return matchesSearch && matchesQp
   })
+
+  // Reorder to surface first match and scroll to it
+  const orderedRules = useMemo(() => {
+    if (!qpSourceId && !qpObject && !qpTermId) return filteredRules
+    const idx = filteredRules.findIndex(r =>
+      (qpSourceId ? r.sourceName.toLowerCase().includes(qpSourceId.toLowerCase()) : true) &&
+      (qpObject ? r.objectName.toLowerCase().includes(qpObject.toLowerCase()) : true)
+    )
+    if (idx === -1) return filteredRules
+    const copy = filteredRules.slice()
+    const [rule] = copy.splice(idx, 1)
+    return [rule, ...copy]
+  }, [filteredRules, qpSourceId, qpObject, qpTermId])
+
+  useEffect(() => {
+    if (focusedRef.current) {
+      focusedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [orderedRules.length, qpSourceId, qpObject, qpTermId])
 
   const handleCreateMapping = (newMapping: any) => {
     const mappingRule = {
@@ -140,18 +213,18 @@ export function MappingRulesList() {
           <div className="flex items-center gap-6 pt-2">
             <div className="flex items-center gap-2 text-sm">
               <GitBranch className="h-4 w-4 text-blue-500" />
-              <span className="text-blue-700 dark:text-blue-400 font-medium">{mockMappingRules.length} mapping rules defined</span>
+              <span className="text-blue-700 dark:text-blue-400 font-medium">{mappingRules.length} mapping rules defined</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Layers className="h-4 w-4 text-green-500" />
               <span className="text-green-700 dark:text-green-400 font-medium">
-                {mockMappingRules.reduce((sum, rule) => sum + rule.fieldMappings.length, 0)} fields mapped
+                {mappingRules.reduce((sum, rule) => sum + rule.fieldMappings.length, 0)} fields mapped
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <TrendingUp className="h-4 w-4 text-purple-500" />
               <span className="text-purple-700 dark:text-purple-400 font-medium">
-                {mockMappingRules.filter(rule => rule.status === 'validated').length} validated rules
+                {mappingRules.filter(rule => rule.status === 'validated').length} validated rules
               </span>
             </div>
           </div>
@@ -262,13 +335,15 @@ export function MappingRulesList() {
       <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "cards" | "table")}>
         <TabsContent value="cards" className="mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredRules.map((rule) => {
+            {orderedRules.map((rule, i) => {
               const isValidated = rule.status === "validated"
               const isDraft = rule.status === "draft"
               const isError = rule.status === "error"
 
+              const isFocused = i === 0 && (qpSourceId || qpObject || qpTermId)
+
               return (
-                <Card key={rule.id} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-0 shadow-sm ${
+                <Card key={rule.id} ref={isFocused ? focusedRef : null} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border ${isFocused ? 'border-blue-400 ring-2 ring-blue-200' : 'border-0'} shadow-sm ${
                   isValidated
                     ? 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50'
                     : isDraft
@@ -547,18 +622,44 @@ export function MappingRulesList() {
       </TabsContent>
       </Tabs>
 
-      {filteredRules.length === 0 && (
+      {filteredRules.length === 0 && demoDataEnabled !== null && (
         <div className="text-center py-12">
-          <GitBranch className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No mapping rules found</h3>
-          <p className="text-muted-foreground mb-4">
-            {searchQuery ? "Try adjusting your search criteria." : "Get started by creating your first mapping rule."}
-          </p>
-          {!searchQuery && (
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Mapping
-            </Button>
+          {demoDataEnabled ? (
+            <>
+              <GitBranch className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No mapping rules found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? "Try adjusting your search criteria." : "Get started by creating your first mapping rule."}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Mapping
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No Mapping Rules Available</h3>
+              <p className="text-muted-foreground mb-4">
+                Demo data is disabled and no real mapping rules are configured yet.
+              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  To see sample data, enable demo data in{" "}
+                  <a href="/settings" className="text-primary hover:underline">
+                    Settings
+                  </a>
+                </p>
+                {!searchQuery && (
+                  <Button onClick={() => setShowCreateDialog(true)} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Mapping
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

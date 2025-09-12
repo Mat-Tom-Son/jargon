@@ -65,18 +65,42 @@ export function AddBusinessTermDialog({ open, onOpenChange }: AddBusinessTermDia
     }
   }
 
-  const handleSubmit = () => {
-    // In real app, this would call the API
-    console.log("Creating business term:", formData)
-    onOpenChange(false)
-    setFormData({
-      name: "",
-      description: "",
-      category: "",
-      owner: "",
-      tags: [],
-    })
-    setNewTag("")
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/terms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          owner: formData.owner,
+          tags: formData.tags,
+        }),
+      });
+
+      if (response.ok) {
+        const newTerm = await response.json();
+        console.log("Created business term:", newTerm);
+        onOpenChange(false);
+        setFormData({
+          name: "",
+          description: "",
+          category: "",
+          owner: "",
+          tags: [],
+        });
+        setNewTag("");
+        // Optionally trigger a refresh of the parent component
+        window.location.reload(); // Simple refresh for now
+      } else {
+        console.error("Failed to create business term");
+      }
+    } catch (error) {
+      console.error("Error creating business term:", error);
+    }
   }
 
   const isValid = formData.name.trim() && formData.description.trim() && formData.category && formData.owner

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "query_customer_summary_v1",
+    "name": "Customer Summary",
+    "description": "Get customer summary with basic information",
+    "category": "reporting",
+    "tags": [
+      "customers",
+      "summary",
+      "reporting"
+    ],
+    "query": {
+      "object": "customers",
+      "select": [
+        "id",
+        "name",
+        "is_active",
+        "created_at"
+      ],
+      "sourceId": "postgres_v1",
+      "limit": 50
+    },
+    "dataSourceId": "postgres_v1",
+    "created_by": "admin",
+    "execution_count": 15,
+    "last_executed": "2025-09-11T20:05:00.000Z",
+    "avg_execution_time": 245,
+    "is_favorite": true,
+    "permissions": [
+      "read"
+    ],
+    "created_at": "2025-09-11T17:39:06.619Z",
+    "updated_at": "2025-09-11T20:05:00.000Z"
+  },
+  {
+    "id": "query_salesforce_accounts_v1",
+    "name": "Salesforce Accounts",
+    "description": "Retrieve active Salesforce accounts",
+    "category": "crm",
+    "tags": [
+      "salesforce",
+      "accounts",
+      "crm"
+    ],
+    "query": {
+      "object": "Account",
+      "select": [
+        "Name",
+        "Type",
+        "Industry",
+        "AnnualRevenue"
+      ],
+      "sourceId": "salesforce_prod_v1",
+      "limit": 100
+    },
+    "dataSourceId": "salesforce_prod_v1",
+    "created_by": "admin",
+    "execution_count": 8,
+    "last_executed": "2025-09-11T19:30:00.000Z",
+    "avg_execution_time": 1250,
+    "is_favorite": false,
+    "permissions": [
+      "read"
+    ],
+    "created_at": "2025-09-11T18:00:00.000Z",
+    "updated_at": "2025-09-11T19:30:00.000Z"
+  },
+  {
+    "id": "query_user_posts_v1",
+    "name": "User Posts Analysis",
+    "description": "Analyze user posts from REST API",
+    "category": "analytics",
+    "tags": [
+      "rest",
+      "posts",
+      "analytics"
+    ],
+    "query": {
+      "object": "posts",
+      "select": [
+        "userId",
+        "title",
+        "body"
+      ],
+      "sourceId": "rest_jsonplaceholder_v1",
+      "limit": 20
+    },
+    "dataSourceId": "rest_jsonplaceholder_v1",
+    "created_by": "admin",
+    "execution_count": 3,
+    "last_executed": "2025-09-11T17:53:36.920Z",
+    "avg_execution_time": 320,
+    "is_favorite": true,
+    "permissions": [
+      "read"
+    ],
+    "created_at": "2025-09-11T17:45:00.000Z",
+    "updated_at": "2025-09-11T17:53:36.920Z"
+  },
+  {
+    "name": "Test Query",
+    "description": "A test query",
+    "category": "reporting",
+    "tags": [
+      "test"
+    ],
+    "query": {
+      "object": "customers",
+      "select": [
+        "id",
+        "name"
+      ],
+      "sourceId": "postgres_v1",
+      "limit": 5
+    },
+    "dataSourceId": "postgres_v1",
+    "created_by": "test_user",
+    "id": "query_1757621678523",
+    "created_at": "2025-09-11T20:14:38.523Z",
+    "updated_at": "2025-09-11T20:14:38.523Z"
+  }
+]
