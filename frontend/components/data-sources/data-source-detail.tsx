@@ -1,115 +1,70 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  ArrowLeft,
-  RefreshCw,
-  Database,
-  Globe,
-  Server,
-  CheckCircle,
-  AlertCircle,
-  Hash,
-  Type,
-  Calendar,
-  Tag,
-} from "lucide-react"
+import { ArrowLeft, AlertTriangle, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 interface DataSourceDetailProps {
   sourceId: string
 }
 
-// Mock data - in real app this would come from API
-const mockSourceDetail = {
-  id: "1",
-  name: "Salesforce Production",
-  type: "REST",
-  status: "active",
-  description: "Production Salesforce instance",
-  lastSync: "2 hours ago",
-  createdAt: "2024-01-15",
-  config: {
-    instanceUrl: "https://company.salesforce.com",
-    username: "admin@company.com",
-  },
-  objects: [
-    {
-      name: "Account",
-      type: "Object",
-      recordCount: 1247,
-      fields: [
-        { name: "Id", type: "ID", nullable: false, hint: "Primary Key" },
-        { name: "Name", type: "String", nullable: false, hint: "Text Field" },
-        { name: "Type", type: "String", nullable: true, hint: "Enum (Customer, Partner, Prospect)" },
-        { name: "Industry", type: "String", nullable: true, hint: "Enum" },
-        { name: "AnnualRevenue", type: "Currency", nullable: true, hint: "Numeric" },
-        { name: "CreatedDate", type: "DateTime", nullable: false, hint: "Timestamp" },
-        { name: "IsActive__c", type: "Boolean", nullable: true, hint: "Custom Field" },
-      ],
-    },
-    {
-      name: "Contact",
-      type: "Object",
-      recordCount: 3891,
-      fields: [
-        { name: "Id", type: "ID", nullable: false, hint: "Primary Key" },
-        { name: "FirstName", type: "String", nullable: true, hint: "Text Field" },
-        { name: "LastName", type: "String", nullable: false, hint: "Text Field" },
-        { name: "Email", type: "Email", nullable: true, hint: "Email Format" },
-        { name: "AccountId", type: "Reference", nullable: true, hint: "Foreign Key to Account" },
-        { name: "CreatedDate", type: "DateTime", nullable: false, hint: "Timestamp" },
-      ],
-    },
-    {
-      name: "Opportunity",
-      type: "Object",
-      recordCount: 892,
-      fields: [
-        { name: "Id", type: "ID", nullable: false, hint: "Primary Key" },
-        { name: "Name", type: "String", nullable: false, hint: "Text Field" },
-        { name: "Amount", type: "Currency", nullable: true, hint: "Numeric" },
-        { name: "StageName", type: "String", nullable: false, hint: "Enum (Prospecting, Qualification, etc.)" },
-        { name: "CloseDate", type: "Date", nullable: false, hint: "Date Field" },
-        { name: "AccountId", type: "Reference", nullable: false, hint: "Foreign Key to Account" },
-      ],
-    },
-  ],
-}
-
-const getTypeIcon = (type: string) => {
-  switch (type.toLowerCase()) {
-    case "id":
-    case "reference":
-      return Hash
-    case "string":
-    case "email":
-      return Type
-    case "datetime":
-    case "date":
-      return Calendar
-    default:
-      return Tag
-  }
-}
-
 export function DataSourceDetail({ sourceId }: DataSourceDetailProps) {
-  const [isDiscovering, setIsDiscovering] = useState(false)
-  const [selectedObject, setSelectedObject] = useState<string>(mockSourceDetail.objects[0]?.name || "")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [source, setSource] = useState<any | null>(null)
 
-  const handleDiscoverSchema = async () => {
-    setIsDiscovering(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsDiscovering(false)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const res = await fetch(buildApiUrl(API_CONFIG.endpoints.source(sourceId)))
+        if (!res.ok) throw new Error(`Failed to load source: ${res.status}`)
+        const data = await res.json()
+        setSource(data)
+      } catch (e: any) {
+        setError(e?.message || 'Failed to load source')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [sourceId])
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/sources">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Sources
+          </Link>
+        </Button>
+        <div className="text-sm text-muted-foreground">Loading source...</div>
+      </div>
+    )
   }
 
-  const selectedObjectData = mockSourceDetail.objects.find((obj) => obj.name === selectedObject)
-  const Icon = mockSourceDetail.type === "REST" ? Globe : mockSourceDetail.type === "PostgreSQL" ? Database : Server
+  if (error || !source) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/sources">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Sources
+          </Link>
+        </Button>
+        <div className="flex items-center gap-2 text-sm text-red-600">
+          <AlertTriangle className="h-4 w-4" />
+          {error || 'Source not found'}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -122,103 +77,195 @@ export function DataSourceDetail({ sourceId }: DataSourceDetailProps) {
         </Button>
       </div>
 
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-muted rounded-lg">
-            <Icon className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{mockSourceDetail.name}</h1>
-            <p className="text-muted-foreground mt-1">{mockSourceDetail.description}</p>
-            <div className="flex items-center gap-4 mt-2">
-              <Badge variant={mockSourceDetail.status === "active" ? "default" : "secondary"}>
-                {mockSourceDetail.status}
-              </Badge>
-              <span className="text-sm text-muted-foreground">Last sync: {mockSourceDetail.lastSync}</span>
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle>{source.name}</CardTitle>
+          <CardDescription>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{source.kind}</Badge>
+              <code className="text-xs bg-muted px-2 py-0.5 rounded">{source.id}</code>
             </div>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Configuration</div>
+            <pre className="text-xs bg-muted p-3 rounded overflow-x-auto">{JSON.stringify(source.config, null, 2)}</pre>
           </div>
-        </div>
-        <Button onClick={handleDiscoverSchema} disabled={isDiscovering}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isDiscovering ? "animate-spin" : ""}`} />
-          {isDiscovering ? "Discovering..." : "Discover Schema"}
-        </Button>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Objects List */}
-        <Card>
+      {source.kind === 'rest' && (
+        <Card className="border-0 shadow-sm">
           <CardHeader>
-            <CardTitle>Objects</CardTitle>
-            <CardDescription>{mockSourceDetail.objects.length} discovered objects</CardDescription>
+            <CardTitle>REST Settings</CardTitle>
+            <CardDescription>Headers and endpoints</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {mockSourceDetail.objects.map((object) => (
-              <div
-                key={object.name}
-                className={`p-3 rounded-md cursor-pointer transition-colors ${
-                  selectedObject === object.name ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-                }`}
-                onClick={() => setSelectedObject(object.name)}
-              >
-                <div className="font-medium">{object.name}</div>
-                <div className="text-sm text-muted-foreground">{object.recordCount.toLocaleString()} records</div>
-              </div>
-            ))}
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Default Headers</div>
+              <HeadersEditor source={source} onUpdated={setSource} />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Registered Endpoints</div>
+              <EndpointsEditor source={source} onUpdated={setSource} />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Sample cURL</div>
+              <CurlHelper baseUrl={source.config?.baseUrl} endpoint={(source.metadata?.endpoints?.[0] || '').replace(/^\/+/, '')} />
+            </div>
           </CardContent>
         </Card>
+      )}
+    </div>
+  )
+}
 
-        {/* Object Details */}
-        <div className="lg:col-span-3">
-          {selectedObjectData && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{selectedObjectData.name} Schema</CardTitle>
-                <CardDescription>
-                  {selectedObjectData.fields.length} fields • {selectedObjectData.recordCount.toLocaleString()} records
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Field Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Nullable</TableHead>
-                      <TableHead>Profiling Hint</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedObjectData.fields.map((field) => {
-                      const TypeIcon = getTypeIcon(field.type)
-                      return (
-                        <TableRow key={field.name}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <TypeIcon className="h-4 w-4 text-muted-foreground" />
-                              {field.name}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{field.type}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            {field.nullable ? (
-                              <AlertCircle className="h-4 w-4 text-yellow-500" />
-                            ) : (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{field.hint}</TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+function HeadersEditor({ source, onUpdated }: { source: any; onUpdated: (s: any) => void }) {
+  const initial = source.config?.headers || {}
+  const [rows, setRows] = useState<Array<{ key: string; value: string }>>(
+    Object.entries(initial).map(([k, v]) => ({ key: k, value: String(v) }))
+  )
+  const [saving, setSaving] = useState(false)
+
+  const addRow = () => setRows(prev => [...prev, { key: '', value: '' }])
+  const updateRow = (i: number, field: 'key' | 'value', val: string) => {
+    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r))
+  }
+  const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const headers: Record<string, string> = {}
+      rows.forEach(r => {
+        const k = r.key.trim()
+        if (k) headers[k] = r.value
+      })
+      const res = await fetch(buildApiUrl(API_CONFIG.endpoints.source(source.id)), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: { headers } })
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        onUpdated(updated)
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              className="flex-1 px-2 py-1 text-sm rounded border border-border bg-background"
+              placeholder="Header-Name"
+              value={row.key}
+              onChange={(e) => updateRow(i, 'key', e.target.value)}
+            />
+            <input
+              className="flex-[2] px-2 py-1 text-sm rounded border border-border bg-background"
+              placeholder="value"
+              value={row.value}
+              onChange={(e) => updateRow(i, 'value', e.target.value)}
+            />
+            <Button variant="outline" size="icon" onClick={() => removeRow(i)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={addRow}>
+          <Plus className="h-3 w-3 mr-1" /> Add Header
+        </Button>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => setRows([])}>Clear</Button>
+        <Button size="sm" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Headers'}</Button>
       </div>
     </div>
+  )
+}
+
+function EndpointsEditor({ source, onUpdated }: { source: any; onUpdated: (s: any) => void }) {
+  const [endpoints, setEndpoints] = useState<string[]>(source.metadata?.endpoints || [])
+  const [newEndpoint, setNewEndpoint] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const add = async () => {
+    if (!newEndpoint.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(buildApiUrl(API_CONFIG.endpoints.sourceEndpoints(source.id)), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: newEndpoint })
+      })
+      if (res.ok) {
+        const eps = await res.json()
+        setEndpoints(eps)
+        onUpdated({ ...source, metadata: { ...(source.metadata || {}), endpoints: eps } })
+        setNewEndpoint('')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const remove = async (ep: string) => {
+    setSaving(true)
+    try {
+      const res = await fetch(buildApiUrl(API_CONFIG.endpoints.sourceEndpoints(source.id)), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: ep })
+      })
+      if (res.ok) {
+        const eps = await res.json()
+        setEndpoints(eps)
+        onUpdated({ ...source, metadata: { ...(source.metadata || {}), endpoints: eps } })
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <input
+          className="flex-1 px-3 py-2 text-sm bg-muted rounded border border-border"
+          placeholder="/drug/ndc.json"
+          value={newEndpoint}
+          onChange={(e) => setNewEndpoint(e.target.value)}
+        />
+        <Button size="sm" onClick={add} disabled={saving}>Add</Button>
+      </div>
+      <ul className="space-y-2">
+        {endpoints.map(ep => (
+          <li key={ep} className="flex items-center justify-between text-sm bg-muted px-3 py-2 rounded">
+            <code>{ep}</code>
+            <Button variant="outline" size="sm" onClick={() => remove(ep)} disabled={saving}>Remove</Button>
+          </li>
+        ))}
+        {endpoints.length === 0 && (
+          <div className="text-xs text-muted-foreground">No endpoints registered</div>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+function CurlHelper({ baseUrl, endpoint }: { baseUrl?: string; endpoint?: string }) {
+  if (!baseUrl || !endpoint) return (
+    <div className="text-xs text-muted-foreground">Add an endpoint to see a cURL example.</div>
+  )
+  const url = `${baseUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`
+  const curl = `curl -s '${url}' -H 'Accept: application/json'`
+  return (
+    <pre className="text-xs font-mono bg-muted p-3 rounded overflow-auto">{curl}</pre>
   )
 }

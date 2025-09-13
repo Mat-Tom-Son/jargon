@@ -202,10 +202,33 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Translation Layer Gateway Running with Real Data' });
 });
 
+// Identity endpoint to ensure we're hitting the correct server
+app.get('/whoami', (req, res) => {
+  res.json({
+    server: 'file-backed-gateway',
+    version: '0.1.0',
+    configDir: CONFIG_DIR,
+    pid: process.pid
+  })
+})
+
 // Get sources from file
 app.get('/sources', (req, res) => {
   try {
     const sources = readJsonFile(SOURCES_FILE);
+    // basic schema validation
+    if (!Array.isArray(sources)) {
+      return res.status(500).json({ error: 'Invalid sources.json: expected an array' })
+    }
+    for (const s of sources) {
+      if (!s || typeof s !== 'object') return res.status(500).json({ error: 'Invalid source entry in sources.json' })
+      if (typeof s.id !== 'string' || typeof s.name !== 'string' || typeof s.kind !== 'string') {
+        return res.status(500).json({ error: `Invalid source schema for id=${s.id || '<unknown>'}` })
+      }
+      if (!s.config || typeof s.config !== 'object') {
+        return res.status(500).json({ error: `Missing config for source id=${s.id}` })
+      }
+    }
     res.json(sources);
   } catch (error) {
     console.error('Error reading sources:', error);
@@ -257,6 +280,47 @@ app.post('/sources', (req, res) => {
   }
 });
 
+// Update existing data source (merge config/metadata)
+app.put('/sources/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const sources = readJsonFile(SOURCES_FILE);
+    const idx = sources.findIndex(s => s.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'Data source not found' });
+
+    const existing = sources[idx];
+    const incoming = req.body || {};
+    const updated = {
+      ...existing,
+      ...incoming,
+      config: { ...(existing.config || {}), ...(incoming.config || {}) },
+      metadata: { ...(existing.metadata || {}), ...(incoming.metadata || {}) },
+      updated_at: new Date().toISOString()
+    };
+    sources[idx] = updated;
+    writeJsonFile(SOURCES_FILE, sources);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating source:', error);
+    res.status(500).json({ error: 'Failed to update source' });
+  }
+});
+
+// Delete data source
+app.delete('/sources/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const sources = readJsonFile(SOURCES_FILE);
+    const next = sources.filter(s => s.id !== id);
+    if (next.length === sources.length) return res.status(404).json({ error: 'Data source not found' });
+    writeJsonFile(SOURCES_FILE, next);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting source:', error);
+    res.status(500).json({ error: 'Failed to delete source' });
+  }
+});
+
 // Create new business term
 app.post('/terms', (req, res) => {
   try {
@@ -305,6 +369,20 @@ app.get('/queries', (req, res) => {
   } catch (error) {
     console.error('Error reading queries:', error);
     res.json([]);
+  }
+});
+
+// Get single query
+app.get('/queries/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const queries = readJsonFile(QUERIES_FILE);
+    const q = queries.find(q => q.id === id);
+    if (!q) return res.status(404).json({ error: 'Query not found' });
+    res.json(q);
+  } catch (error) {
+    console.error('Error reading query:', error);
+    res.status(500).json({ error: 'Failed to read query' });
   }
 });
 
@@ -799,6 +877,33 @@ app.post('/execute', async (req, res) => {
       writeJsonFile(LINEAGE_FILE, lineage);
     } catch (error) {
       console.error('Error recording lineage:', error);
+    }
+
+    // Append run history to saved query if matched
+    try {
+      const queries = readJsonFile(QUERIES_FILE);
+      const idx = queries.findIndex(q => q.dataSourceId === source.id && JSON.stringify(q.query) === JSON.stringify(req.body));
+      if (idx !== -1) {
+        const entry = {
+          id: lineageRecord.id,
+          timestamp: lineageRecord.timestamp,
+          sourceId: source.id,
+          object,
+          select,
+          limit,
+          executionTime,
+          recordCount
+        };
+        const history = Array.isArray(queries[idx].history) ? queries[idx].history : [];
+        history.unshift(entry);
+        queries[idx].history = history.slice(0, 20);
+        queries[idx].last_executed = lineageRecord.timestamp;
+        queries[idx].execution_count = (queries[idx].execution_count || 0) + 1;
+        queries[idx].avg_execution_time = Math.round(((queries[idx].avg_execution_time || executionTime) + executionTime) / 2);
+        writeJsonFile(QUERIES_FILE, queries);
+      }
+    } catch (error) {
+      console.error('Error appending run history:', error);
     }
 
     // Build mappings and definitions from file-based rules/terms

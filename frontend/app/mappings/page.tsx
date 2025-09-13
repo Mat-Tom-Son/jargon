@@ -1,3 +1,4 @@
+"use client"
 import { MappingRulesList } from "@/components/mapping-rules/mapping-rules-list"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"

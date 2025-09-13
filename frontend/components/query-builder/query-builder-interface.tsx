@@ -19,7 +19,7 @@ import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 const sampleQuery = `{
   "object": "drug/ndc.json",
-  "select": ["id", "name", "region", "is_active"],
+  "select": ["brand_name", "generic_name", "product_ndc"],
   "limit": 5,
   "sourceId": "openfda_v1",
   "params": { "search": "brand_name:ibuprofen" }
@@ -125,6 +125,10 @@ export function QueryBuilderInterface() {
   const [error, setError] = useState<string | null>(null)
   const [parsedQuery, setParsedQuery] = useState<any>(null)
   const [termsById, setTermsById] = useState<Record<string, string>>({})
+  const [availableSources, setAvailableSources] = useState<Array<{id: string; name: string; kind: string}>>([])
+  const [selectedSourceId, setSelectedSourceId] = useState<string>("openfda_v1")
+  const [availableEndpoints, setAvailableEndpoints] = useState<string[]>([])
+  const [selectedEndpoint, setSelectedEndpoint] = useState<string>("")
 
   // Query management state
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([])
@@ -140,7 +144,94 @@ export function QueryBuilderInterface() {
   // Load saved queries on component mount
   useEffect(() => {
     loadSavedQueries()
+    // Attempt to load query from Saved Queries handoff
+    try {
+      const raw = sessionStorage.getItem('QB_LOAD_QUERY')
+      if (raw) {
+        const obj = JSON.parse(raw)
+        setQuery(JSON.stringify(obj, null, 2))
+        sessionStorage.removeItem('QB_LOAD_QUERY')
+      }
+    } catch {}
   }, [])
+
+  // Load terms for display mapping (termId -> term name)
+  useEffect(() => {
+    // Load available sources for the selector
+    const loadSources = async () => {
+      try {
+        const res = await fetch(buildApiUrl(API_CONFIG.endpoints.sources))
+        if (!res.ok) return
+        const sources = await res.json()
+        setAvailableSources(sources)
+        // Default selection: keep current selected if present, else first
+        const exists = sources.some((s: any) => s.id === selectedSourceId)
+        const next = exists ? selectedSourceId : (sources[0]?.id || 'postgres')
+        setSelectedSourceId(next)
+        try {
+          const obj = JSON.parse(query)
+          if (obj.sourceId !== next) {
+            obj.sourceId = next
+            setQuery(JSON.stringify(obj, null, 2))
+          }
+        } catch {}
+      } catch {}
+    }
+    loadSources()
+  }, [])
+
+  // Keep JSON query's sourceId in sync with selector
+  useEffect(() => {
+    try {
+      const obj = JSON.parse(query)
+      if (obj.sourceId !== selectedSourceId) {
+        obj.sourceId = selectedSourceId
+        setQuery(JSON.stringify(obj, null, 2))
+      }
+    } catch {}
+  }, [selectedSourceId])
+
+  // Load endpoints for selected source
+  useEffect(() => {
+    const loadEndpoints = async () => {
+      if (!selectedSourceId) return
+      try {
+        const res = await fetch(`${API_CONFIG.baseUrl}/sources/${encodeURIComponent(selectedSourceId)}/endpoints`)
+        if (!res.ok) {
+          setAvailableEndpoints([])
+          return
+        }
+        const endpoints = await res.json()
+        setAvailableEndpoints(Array.isArray(endpoints) ? endpoints : [])
+        // If current endpoint isn't in list, default to first
+        const current = selectedEndpoint
+        const next = endpoints?.includes(current) ? current : (endpoints?.[0] || "")
+        setSelectedEndpoint(next)
+        // Sync JSON object/endpoint
+        try {
+          const obj = JSON.parse(query)
+          if (next) {
+            // Prefer object as full path for REST
+            obj.object = next.replace(/^\/+/, '')
+          }
+          setQuery(JSON.stringify(obj, null, 2))
+        } catch {}
+      } catch {
+        setAvailableEndpoints([])
+      }
+    }
+    loadEndpoints()
+  }, [selectedSourceId])
+
+  // Keep JSON object's resource in sync with endpoint selector
+  useEffect(() => {
+    try {
+      if (!selectedEndpoint) return
+      const obj = JSON.parse(query)
+      obj.object = selectedEndpoint.replace(/^\/+/, '')
+      setQuery(JSON.stringify(obj, null, 2))
+    } catch {}
+  }, [selectedEndpoint])
 
   // Load terms for display mapping (termId -> term name)
   useEffect(() => {
@@ -163,7 +254,7 @@ export function QueryBuilderInterface() {
 
   const loadSavedQueries = async () => {
     try {
-      const response = await fetch('http://localhost:3001/queries')
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.queries))
       if (response.ok) {
         const queries = await response.json()
         setSavedQueries(queries)
@@ -191,7 +282,7 @@ export function QueryBuilderInterface() {
         is_favorite: false
       }
 
-      const response = await fetch('http://localhost:3001/queries', {
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.queries), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newQuery)
@@ -218,7 +309,7 @@ export function QueryBuilderInterface() {
     setIsLoadDialogOpen(false)
 
     // Update execution count
-    fetch(`http://localhost:3001/queries/${savedQuery.id}`, {
+    fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.query(savedQuery.id)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -230,7 +321,7 @@ export function QueryBuilderInterface() {
 
   const deleteQuery = async (queryId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/queries/${queryId}`, {
+      const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.query(queryId)}`, {
         method: 'DELETE'
       })
 
@@ -433,9 +524,36 @@ export function QueryBuilderInterface() {
           </div>
           <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
             <code className="block bg-blue-100 dark:bg-blue-900 px-3 py-2 rounded text-xs font-mono">
-              {`{ "object": "table_name", "select": ["field1", "field2"], "limit": 10, "sourceId": "source_id" }`}
+              {`{ "object": "resource", "select": ["field1", "field2"], "limit": 10, "sourceId": "source_id" }`}
             </code>
-            <p className="mt-2">Available sources: postgres, salesforce_demo, source_1757613216920 (REST API)</p>
+            <div className="mt-3 flex items-center gap-3">
+              <Label className="text-xs">Data Source</Label>
+              <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
+                <SelectTrigger className="w-64 h-8">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSources.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.kind})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableEndpoints.length > 0 && (
+                <>
+                  <Label className="text-xs">Endpoint</Label>
+                  <Select value={selectedEndpoint} onValueChange={setSelectedEndpoint}>
+                    <SelectTrigger className="w-72 h-8">
+                      <SelectValue placeholder="Select endpoint" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableEndpoints.map((ep) => (
+                        <SelectItem key={ep} value={ep}>{ep}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

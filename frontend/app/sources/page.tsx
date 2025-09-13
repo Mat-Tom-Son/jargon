@@ -1,6 +1,10 @@
+"use client"
+
 import { DataSourcesList } from "@/components/data-sources/data-sources-list"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
+
+export const dynamic = 'force-dynamic'
 
 export default function SourcesPage() {
   return (

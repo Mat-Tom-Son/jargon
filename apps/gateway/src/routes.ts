@@ -21,63 +21,44 @@ import path from 'path';
 export function makeRouter() {
   const r = Router();
 
-  // Boot data sources: PostgreSQL, Salesforce, and REST API
-  // Replace configuration parameters with your real credentials
-  const db = new SqlConnector('postgres', {
-    client: 'pg',
-    connection: process.env.DATABASE_URL || {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'jargon_dev',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password'
-    }
-  });
+  // Initialize connectors and sources from environment and config files only
+  const connectors: Record<string, any> = {};
+  const sources: Record<string, { id: string; kind: 'salesforce' | 'rest' | 'sql'; name: string; config: any }>= {};
 
-  const sf = new SalesforceConnector('sf', {
-    instanceUrl: process.env.SALESFORCE_INSTANCE_URL || 'https://example.my.salesforce.com',
-    accessToken: process.env.SALESFORCE_ACCESS_TOKEN || 'x'
-  });
-
-  const rest = new RestConnector('catalog', {
-    baseUrl: process.env.REST_API_BASE_URL || 'https://jsonplaceholder.typicode.com',
-    manifest: { endpoints: ['/users', '/posts'] }
-  });
-  const openfda = new RestConnector('openfda', {
-    baseUrl: process.env.OPENFDA_BASE_URL || 'https://api.fda.gov',
-    manifest: { endpoints: ['/drug/ndc.json', '/device/510k.json', '/drug/enforcement.json'] }
-  });
-
-  const connectors = { postgres: db, sf, catalog: rest, openfda } as const;
-  const sources = {
-    postgres: {
+  // Optionally register built-in SQL/SF connectors only if env vars are present
+  if (process.env.DATABASE_URL || process.env.DB_HOST) {
+    connectors['postgres'] = new SqlConnector('postgres', {
+      client: 'pg',
+      connection: process.env.DATABASE_URL || {
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432'),
+        database: process.env.DB_NAME || 'jargon_dev',
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || 'password'
+      }
+    });
+    sources['postgres'] = {
       id: 'postgres',
-      kind: 'sql' as const,
+      kind: 'sql',
       name: 'PostgreSQL Database',
       config: {
         host: process.env.DB_HOST || 'localhost',
         database: process.env.DB_NAME || 'jargon_dev'
       }
-    },
-    sf: {
+    };
+  }
+  if (process.env.SALESFORCE_INSTANCE_URL && process.env.SALESFORCE_ACCESS_TOKEN) {
+    connectors['sf'] = new SalesforceConnector('sf', {
+      instanceUrl: process.env.SALESFORCE_INSTANCE_URL,
+      accessToken: process.env.SALESFORCE_ACCESS_TOKEN
+    });
+    sources['sf'] = {
       id: 'sf',
-      kind: 'salesforce' as const,
+      kind: 'salesforce',
       name: 'Salesforce',
       config: { instanceUrl: process.env.SALESFORCE_INSTANCE_URL }
-    },
-    catalog: {
-      id: 'catalog',
-      kind: 'rest' as const,
-      name: 'Catalog API',
-      config: { baseUrl: process.env.REST_API_BASE_URL || 'https://jsonplaceholder.typicode.com' }
-    },
-    openfda: {
-      id: 'openfda',
-      kind: 'rest' as const,
-      name: 'openFDA API',
-      config: { baseUrl: process.env.OPENFDA_BASE_URL || 'https://api.fda.gov' }
-    }
-  } as const;
+    };
+  }
 
   // Define a simple semantic contract.  In practice this would be
   // persisted in a registry and support many terms and rules.  Here
@@ -152,7 +133,20 @@ export function makeRouter() {
 
   // Merge in file-configured sources, terms, and rules to avoid hardcoding
   try {
-    const dataDir = path.resolve(process.cwd(), 'config', 'data');
+    // Locate the monorepo config/data directory robustly regardless of cwd
+    const findDataDir = (): string => {
+      const candidates = [
+        path.resolve(process.cwd(), 'config', 'data'),
+        path.resolve(process.cwd(), '..', 'config', 'data'),
+        path.resolve(process.cwd(), '..', '..', 'config', 'data'),
+        path.resolve(__dirname, '..', '..', '..', 'config', 'data')
+      ];
+      for (const c of candidates) {
+        if (fs.existsSync(c)) return c;
+      }
+      return candidates[0];
+    };
+    const dataDir = findDataDir();
     const readJson = (file: string) => {
       const p = path.join(dataDir, file);
       if (!fs.existsSync(p)) return null;
@@ -179,12 +173,16 @@ export function makeRouter() {
         const src = envSubstitute(s);
         // Register source ref for /sources
         (sources as any)[src.id] = { id: src.id, kind: src.kind, name: src.name, config: src.config };
-        // Register connector for engine
-        if (src.kind === 'rest') {
-          (connectors as any)[src.id] = new RestConnector(src.id, { baseUrl: src.config.baseUrl, manifest: src.metadata?.endpoints ? { endpoints: src.metadata.endpoints } : undefined });
-        } else if (src.kind === 'salesforce') {
-          (connectors as any)[src.id] = new SalesforceConnector(src.id, { instanceUrl: src.config.instanceUrl, accessToken: src.config.accessToken || 'x' });
-        } else if (src.kind === 'sql') {
+        // Register connector for engine from config file entries
+        if (src.kind === 'rest' && src.config?.baseUrl) {
+          (connectors as any)[src.id] = new RestConnector(src.id, {
+            baseUrl: src.config.baseUrl,
+            manifest: src.metadata?.endpoints ? { endpoints: src.metadata.endpoints } : undefined,
+            headers: src.config?.headers
+          });
+        } else if (src.kind === 'salesforce' && src.config?.instanceUrl && src.config?.accessToken) {
+          (connectors as any)[src.id] = new SalesforceConnector(src.id, { instanceUrl: src.config.instanceUrl, accessToken: src.config.accessToken });
+        } else if (src.kind === 'sql' && src.config) {
           (connectors as any)[src.id] = new SqlConnector(src.id, { client: 'pg' as any, connection: src.config });
         }
       }
@@ -214,6 +212,24 @@ export function makeRouter() {
 
   const engine = new Engine(connectors as any, sources as any, contract);
 
+  const reinitConnector = (src: { id: string; kind: 'rest' | 'salesforce' | 'sql'; name: string; config: any; metadata?: any }) => {
+    try {
+      if (src.kind === 'rest' && src.config?.baseUrl) {
+        (connectors as any)[src.id] = new RestConnector(src.id, {
+          baseUrl: src.config.baseUrl,
+          manifest: src.metadata?.endpoints ? { endpoints: src.metadata.endpoints } : undefined,
+          headers: src.config?.headers
+        });
+      } else if (src.kind === 'salesforce' && src.config?.instanceUrl && src.config?.accessToken) {
+        (connectors as any)[src.id] = new SalesforceConnector(src.id, { instanceUrl: src.config.instanceUrl, accessToken: src.config.accessToken });
+      } else if (src.kind === 'sql' && src.config) {
+        (connectors as any)[src.id] = new SqlConnector(src.id, { client: 'pg' as any, connection: src.config });
+      }
+    } catch (_e) {
+      // ignore reinit errors
+    }
+  };
+
   // Health endpoint
   r.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -232,8 +248,98 @@ export function makeRouter() {
     res.json(context);
   });
 
-  // Expose raw sources, terms and rules for the admin UI
+  // Expose raw sources and management endpoints for the admin UI
   r.get('/sources', (_req, res) => res.json(Object.values(sources)));
+  r.get('/sources/:id', (req, res) => {
+    const id = req.params.id;
+    const src = (sources as any)[id];
+    if (!src) return res.status(404).json({ error: 'not_found' });
+    res.json(src);
+  });
+  r.put('/sources/:id', (req, res) => {
+    const id = req.params.id;
+    const body = req.body || {};
+    const existing = (sources as any)[id];
+    if (!existing) return res.status(404).json({ error: 'not_found' });
+    const updated = {
+      ...existing,
+      ...body,
+      config: { ...(existing.config || {}), ...(body.config || {}) },
+      metadata: { ...(existing.metadata || {}), ...(body.metadata || {}) }
+    };
+    (sources as any)[id] = updated;
+    reinitConnector(updated as any);
+    res.json(updated);
+  });
+  r.get('/sources/:id/endpoints', async (req, res) => {
+    const id = req.params.id;
+    const conn = (connectors as any)[id];
+    if (!conn) return res.status(404).json({ error: 'not_found' });
+    try {
+      const endpoints = await conn.listEndpoints?.();
+      res.json(endpoints || []);
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || 'failed_list_endpoints' });
+    }
+  });
+  r.post('/sources/:id/endpoints', (req, res) => {
+    const id = req.params.id;
+    const src = (sources as any)[id];
+    if (!src) return res.status(404).json({ error: 'not_found' });
+    const body = req.body || {};
+    const toAdd: string[] = Array.isArray(body.endpoints)
+      ? body.endpoints
+      : (body.endpoint ? [String(body.endpoint)] : []);
+    if (!toAdd.length) return res.status(400).json({ error: 'endpoint_required' });
+    const current: string[] = src.metadata?.endpoints ? [...src.metadata.endpoints] : [];
+    const set = new Set(current);
+    for (const ep of toAdd) {
+      if (typeof ep === 'string' && ep.trim()) set.add(ep.trim().startsWith('/') ? ep.trim() : `/${ep.trim()}`);
+    }
+    const updated = {
+      ...src,
+      metadata: { ...(src.metadata || {}), endpoints: Array.from(set) }
+    };
+    (sources as any)[id] = updated;
+    reinitConnector(updated as any);
+    res.status(201).json(updated.metadata.endpoints);
+  });
+  r.delete('/sources/:id/endpoints', (req, res) => {
+    const id = req.params.id;
+    const src = (sources as any)[id];
+    if (!src) return res.status(404).json({ error: 'not_found' });
+    const body = req.body || {};
+    const target: string = String(body.endpoint || '').trim();
+    if (!target) return res.status(400).json({ error: 'endpoint_required' });
+    const current: string[] = src.metadata?.endpoints ? [...src.metadata.endpoints] : [];
+    const filtered = current.filter((e: string) => e !== target);
+    const updated = { ...src, metadata: { ...(src.metadata || {}), endpoints: filtered } };
+    (sources as any)[id] = updated;
+    reinitConnector(updated as any);
+    res.json(updated.metadata.endpoints);
+  });
+  r.post('/sources', (req, res) => {
+    const body = req.body || {};
+    const id = body.id || body.name?.toLowerCase().replace(/[^a-z0-9]+/g, '_') + '_' + Date.now();
+    const kind = body.kind as ('salesforce' | 'rest' | 'sql');
+    if (!kind) return res.status(400).json({ error: 'kind_required' });
+    const name = body.name || id;
+    const config = body.config || {};
+    (sources as any)[id] = { id, kind, name, config };
+    // Create connector instance if possible
+    try {
+      if (kind === 'rest' && config.baseUrl) {
+        (connectors as any)[id] = new RestConnector(id, { baseUrl: config.baseUrl, manifest: undefined });
+      } else if (kind === 'salesforce' && config.instanceUrl && config.accessToken) {
+        (connectors as any)[id] = new SalesforceConnector(id, { instanceUrl: config.instanceUrl, accessToken: config.accessToken });
+      } else if (kind === 'sql' && config) {
+        (connectors as any)[id] = new SqlConnector(id, { client: 'pg' as any, connection: config });
+      }
+    } catch (_) {
+      // ignore connector init errors; source is still created
+    }
+    res.status(201).json((sources as any)[id]);
+  });
   r.get('/terms', (_req, res) => res.json(contract.terms));
   r.get('/rules', (_req, res) => res.json(contract.rules));
 

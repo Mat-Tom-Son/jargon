@@ -52,6 +52,14 @@ npm run dev
 
 Visit `http://localhost:3000` for the admin interface and `http://localhost:3001` for API access.
 
+### One-Command Sanity Check
+
+```bash
+# With gateway running on :3001
+cd apps/gateway && npm run test
+# Verifies: /whoami, /health, /sources CRUD, sample REST and SQL execution
+```
+
 ## 🎛️ **Admin Interface Features**
 
 The admin interface provides:
@@ -82,6 +90,12 @@ The admin interface provides:
    ```bash
    cd apps/gateway
    npm run test
+   ```
+
+4. **Confirm you’re on the right server:**
+   ```bash
+   curl http://localhost:3001/whoami
+   # → { "server": "file-backed-gateway", ... }
    ```
 
 ### Test Your Setup

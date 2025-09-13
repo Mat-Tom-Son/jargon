@@ -14,6 +14,7 @@ import { Plus, Database, Globe, Server, MoreHorizontal, Eye, Settings, Trash2, C
 import { AddDataSourceDialog } from "./add-data-source-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 interface DataSource {
   id: string
@@ -53,6 +54,8 @@ export function DataSourcesList() {
   const [filterEnvironment, setFilterEnvironment] = useState<string>("all")
   const [filterKind, setFilterKind] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [renamingId, setRenamingId] = useState<string>("")
+  const [renameValue, setRenameValue] = useState<string>("")
 
   // Load data sources from API
   useEffect(() => {
@@ -62,7 +65,7 @@ export function DataSourcesList() {
   const loadDataSources = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:3001/sources')
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.sources))
       if (response.ok) {
         const sources = await response.json()
         setDataSources(sources)
@@ -151,11 +154,13 @@ export function DataSourcesList() {
 
   const getFilteredSources = () => {
     return dataSources.filter(source => {
-      const matchesSearch = source.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          source.description.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesEnvironment = filterEnvironment === 'all' || source.environment === filterEnvironment
+      const name = (source.name || '').toLowerCase()
+      const desc = (source.description || '').toLowerCase()
+      const matchesSearch = name.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase())
+      const env = (source.environment || '').toLowerCase()
+      const matchesEnvironment = filterEnvironment === 'all' || env === filterEnvironment
       const matchesKind = filterKind === 'all' || source.kind === filterKind
-      const matchesStatus = filterStatus === 'all' || source.status === filterStatus
+      const matchesStatus = filterStatus === 'all' || (source.status || '').toLowerCase() === filterStatus
 
       return matchesSearch && matchesEnvironment && matchesKind && matchesStatus
     })
@@ -338,8 +343,42 @@ export function DataSourcesList() {
                           : isInactive
                           ? 'text-gray-900 dark:text-gray-100'
                           : 'text-yellow-900 dark:text-yellow-100'
-                      }`}>{source.name}</CardTitle>
-                      <CardDescription className="font-medium">{source.kind} • {source.environment}</CardDescription>
+                      }`}>
+                        {renamingId === source.id ? (
+                          <input
+                            className="px-2 py-1 text-sm rounded border border-border bg-background"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                try {
+                                  const resp = await fetch(buildApiUrl(API_CONFIG.endpoints.source(source.id)), {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ name: renameValue })
+                                  })
+                                  if (resp.ok) {
+                                    const updated = await resp.json()
+                                    setDataSources(prev => prev.map(s => s.id === source.id ? updated : s))
+                                  }
+                                } finally {
+                                  setRenamingId("")
+                                  setRenameValue("")
+                                }
+                              } else if (e.key === 'Escape') {
+                                setRenamingId("")
+                                setRenameValue("")
+                              }
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <span onDoubleClick={() => { setRenamingId(source.id); setRenameValue(source.name) }}>
+                            {source.name}
+                          </span>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="font-medium">{source.kind} • {source.environment || 'unknown'}</CardDescription>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -363,7 +402,17 @@ export function DataSourcesList() {
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Sync Now
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-destructive" onClick={async () => {
+                        if (!confirm(`Remove data source "${source.name}"? This cannot be undone.`)) return
+                        try {
+                          const resp = await fetch(buildApiUrl(API_CONFIG.endpoints.source(source.id)), { method: 'DELETE' })
+                          if (resp.ok) {
+                            setDataSources(prev => prev.filter(s => s.id !== source.id))
+                          }
+                        } catch (e) {
+                          console.error('Failed to remove source', e)
+                        }
+                      }}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Remove Source
                       </DropdownMenuItem>
@@ -372,7 +421,7 @@ export function DataSourcesList() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">{source.description}</p>
+                <p className="text-sm text-muted-foreground">{source.description || 'No description available'}</p>
 
                 {/* Status and Metrics */}
                 <div className="space-y-3">
@@ -392,7 +441,7 @@ export function DataSourcesList() {
                           ? 'bg-gray-500 hover:bg-gray-600'
                           : 'bg-yellow-500 hover:bg-yellow-600'
                       }>
-                        {source.status}
+                        {source.status || 'unknown'}
                       </Badge>
                     </div>
                     {source.metadata?.recordCount && (

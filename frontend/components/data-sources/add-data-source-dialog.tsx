@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Database, Globe, Server } from "lucide-react"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 interface AddDataSourceDialogProps {
   open: boolean
@@ -76,7 +77,7 @@ export function AddDataSourceDialog({ open, onOpenChange }: AddDataSourceDialogP
 
   const handleSubmit = async () => {
     try {
-      const response = await fetch('http://localhost:3001/sources', {
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.sources), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

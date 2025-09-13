@@ -1,3 +1,4 @@
+"use client"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { DashboardOverview } from "@/components/dashboard-overview"

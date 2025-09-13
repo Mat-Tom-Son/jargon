@@ -47,6 +47,8 @@ async function runIntegrationTests() {
 
   // Test 1: Health Check
   const health = await testEndpoint('Health Check', 'GET', `${BASE_URL}/health`);
+  // Test 1.5: Who Am I
+  await testEndpoint('Who Am I', 'GET', `${BASE_URL}/whoami`);
   if (!health) {
     console.log('\n❌ Server not responding. Make sure to start the server first:');
     console.log('   cd apps/gateway && node simple-server.js');
@@ -99,10 +101,21 @@ async function runIntegrationTests() {
         `${BASE_URL}/execute`,
         {
           sourceId: restSource.id,
-          object: 'users',
+          object: restSource.metadata?.endpoints?.[0] || 'drug/ndc.json',
           limit: 2
         }
       );
+    }
+
+    // CRUD Source (create -> get -> delete)
+    const created = await testEndpoint('Create Source', 'POST', `${BASE_URL}/sources`, {
+      name: `Temp Source ${Date.now()}`,
+      kind: 'rest',
+      config: { baseUrl: 'https://jsonplaceholder.typicode.com' }
+    })
+    if (created?.id) {
+      await testEndpoint('Get Created Source', 'GET', `${BASE_URL}/sources/${created.id}`)
+      await testEndpoint('Delete Source', 'DELETE', `${BASE_URL}/sources/${created.id}`)
     }
 
     // Test Salesforce if configured

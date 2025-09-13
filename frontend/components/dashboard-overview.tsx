@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Database, BookOpen, GitBranch, Activity, Plus, ArrowRight, ArrowUpRight, TrendingUp, CheckCircle, AlertTriangle, Zap, Users } from "lucide-react"
 import Link from "next/link"
 import { HealthCheck } from "@/components/health-check"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 export function DashboardOverview() {
   const [demoDataEnabled, setDemoDataEnabled] = useState<boolean | null>(null)

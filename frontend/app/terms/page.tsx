@@ -1,3 +1,4 @@
+"use client"
 import { BusinessTermsList } from "@/components/business-terms/business-terms-list"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"

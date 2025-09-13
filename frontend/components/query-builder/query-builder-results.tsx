@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -202,8 +202,8 @@ export function QueryResultsDisplay({ data }: QueryResultsDisplayProps) {
             </TableHeader>
             <TableBody>
               {data.map((row, index) => (
-                <>
-                  <TableRow key={index} className="hover:bg-muted/50">
+                <React.Fragment key={index}>
+                  <TableRow className="hover:bg-muted/50">
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -225,7 +225,7 @@ export function QueryResultsDisplay({ data }: QueryResultsDisplayProps) {
                     ))}
                   </TableRow>
                   {expandedRows.has(index) && (
-                    <TableRow>
+                    <TableRow key={`expanded-${index}`}>
                       <TableCell colSpan={columns.length + 1} className="bg-muted/30">
                         <Card>
                           <CardContent className="p-4">
@@ -235,7 +235,7 @@ export function QueryResultsDisplay({ data }: QueryResultsDisplayProps) {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>

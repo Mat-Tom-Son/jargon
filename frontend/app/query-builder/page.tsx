@@ -1,3 +1,4 @@
+"use client"
 import { QueryBuilderInterface } from "@/components/query-builder/query-builder-interface"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"

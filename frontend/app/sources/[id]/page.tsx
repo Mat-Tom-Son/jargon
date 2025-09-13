@@ -1,3 +1,4 @@
+"use client"
 import { DataSourceDetail } from "@/components/data-sources/data-source-detail"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"

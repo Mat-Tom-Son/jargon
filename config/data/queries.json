@@ -117,6 +117,24 @@
     "created_by": "test_user",
     "id": "query_1757621678523",
     "created_at": "2025-09-11T20:14:38.523Z",
-    "updated_at": "2025-09-11T20:14:38.523Z"
+    "updated_at": "2025-09-11T20:14:38.523Z",
+    "execution_count": 1,
+    "last_executed": "2025-09-13T03:58:57.674Z",
+    "avg_execution_time": 13,
+    "history": [
+      {
+        "id": "lineage_run_1757735937674",
+        "timestamp": "2025-09-13T03:58:57.674Z",
+        "sourceId": "postgres_v1",
+        "object": "customers",
+        "select": [
+          "id",
+          "name"
+        ],
+        "limit": 5,
+        "executionTime": 13,
+        "recordCount": 5
+      }
+    ]
   }
 ]

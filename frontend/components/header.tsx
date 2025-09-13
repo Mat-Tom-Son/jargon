@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { User, Settings, LogOut, HelpCircle, Moon, Sun } from "lucide-react"
+import { useEffect, useState } from "react"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 import { usePathname } from "next/navigation"
 
 const getPageTitle = (pathname: string) => {
@@ -20,8 +22,22 @@ const getPageTitle = (pathname: string) => {
 }
 
 export function Header() {
+  const [whoami, setWhoami] = useState<{ server: string; version?: string } | null>(null)
   const pathname = usePathname()
   const title = getPageTitle(pathname)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await fetch(buildApiUrl(API_CONFIG.endpoints.whoami))
+        if (!res.ok) return
+        const data = await res.json()
+        if (mounted) setWhoami(data)
+      } catch {}
+    })()
+    return () => { mounted = false }
+  }, [])
 
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm px-6 flex items-center justify-between">
@@ -37,6 +53,11 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {whoami && (
+          <Badge variant="outline" className="text-xs">
+            {whoami.server}{whoami.version ? ` • v${whoami.version}` : ''}
+          </Badge>
+        )}
 
         {/* User Profile Dropdown */}
         <DropdownMenu>

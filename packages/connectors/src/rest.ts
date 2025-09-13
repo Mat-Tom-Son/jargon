@@ -11,10 +11,12 @@ export class RestConnector implements Connector {
   kind = 'rest' as const;
   baseUrl: string;
   manifest?: { endpoints: string[] };
-  constructor(id: string, cfg: { baseUrl: string; manifest?: { endpoints: string[] } }) {
+  private defaultHeaders?: Record<string, string>;
+  constructor(id: string, cfg: { baseUrl: string; manifest?: { endpoints: string[] }; headers?: Record<string, string> }) {
     this.id = id;
     this.baseUrl = cfg.baseUrl.replace(/\/+$/, '');
     this.manifest = cfg.manifest;
+    this.defaultHeaders = cfg.headers;
   }
   async listEndpoints() {
     if (this.manifest) return this.manifest.endpoints;
@@ -23,7 +25,7 @@ export class RestConnector implements Connector {
   async sample(endpoint: string, n = 25) {
     const url = `${this.baseUrl}${endpoint}${endpoint.includes('?') ? '&' : '?'}limit=${n}`;
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: this.defaultHeaders });
       const json: any = await res.json();
       const results = Array.isArray(json)
         ? json
@@ -41,7 +43,7 @@ export class RestConnector implements Connector {
     const url = this.buildUrl(nativeQuery);
     let rows: any[] = [];
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: this.defaultHeaders });
       const json: any = await res.json();
       rows = Array.isArray(json)
         ? json
