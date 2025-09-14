@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "node gateway.js",
+    "dev": "ts-node --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "node test-integrations.js",

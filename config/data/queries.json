@@ -22,48 +22,85 @@
     },
     "dataSourceId": "postgres_v1",
     "created_by": "admin",
-    "execution_count": 15,
-    "last_executed": "2025-09-11T20:05:00.000Z",
-    "avg_execution_time": 245,
+    "execution_count": 17,
+    "last_executed": "2025-09-13T05:36:29.954Z",
+    "avg_execution_time": 71,
     "is_favorite": true,
     "permissions": [
       "read"
     ],
     "created_at": "2025-09-11T17:39:06.619Z",
-    "updated_at": "2025-09-11T20:05:00.000Z"
+    "updated_at": "2025-09-11T20:05:00.000Z",
+    "history": [
+      {
+        "id": "lineage_run_1757741789954",
+        "timestamp": "2025-09-13T05:36:29.954Z",
+        "sourceId": "postgres_v1",
+        "object": "customers",
+        "select": [
+          "id",
+          "name",
+          "is_active",
+          "created_at"
+        ],
+        "limit": 50,
+        "executionTime": 12,
+        "recordCount": 6
+      }
+    ]
   },
   {
-    "id": "query_salesforce_accounts_v1",
-    "name": "Salesforce Accounts",
-    "description": "Retrieve active Salesforce accounts",
-    "category": "crm",
+    "id": "query_openfda_ndc_ibuprofen_v1",
+    "name": "OpenFDA NDC - Ibuprofen",
+    "description": "Search NDC for ibuprofen brand names",
+    "category": "public_api",
     "tags": [
-      "salesforce",
-      "accounts",
-      "crm"
+      "openfda",
+      "ndc",
+      "ibuprofen"
     ],
     "query": {
-      "object": "Account",
+      "object": "drug/ndc.json",
       "select": [
-        "Name",
-        "Type",
-        "Industry",
-        "AnnualRevenue"
+        "id",
+        "name",
+        "region",
+        "is_active"
       ],
-      "sourceId": "salesforce_prod_v1",
-      "limit": 100
+      "sourceId": "openfda_v1",
+      "limit": 5,
+      "params": {
+        "search": "brand_name:ibuprofen"
+      }
     },
-    "dataSourceId": "salesforce_prod_v1",
+    "dataSourceId": "openfda_v1",
     "created_by": "admin",
-    "execution_count": 8,
-    "last_executed": "2025-09-11T19:30:00.000Z",
-    "avg_execution_time": 1250,
-    "is_favorite": false,
+    "execution_count": 2,
+    "last_executed": "2025-09-13T05:36:50.338Z",
+    "avg_execution_time": 360,
+    "is_favorite": true,
     "permissions": [
       "read"
     ],
-    "created_at": "2025-09-11T18:00:00.000Z",
-    "updated_at": "2025-09-11T19:30:00.000Z"
+    "created_at": "2025-09-13T00:00:00.000Z",
+    "updated_at": "2025-09-13T00:00:00.000Z",
+    "history": [
+      {
+        "id": "lineage_run_1757741810338",
+        "timestamp": "2025-09-13T05:36:50.338Z",
+        "sourceId": "openfda_v1",
+        "object": "drug/ndc.json",
+        "select": [
+          "id",
+          "name",
+          "region",
+          "is_active"
+        ],
+        "limit": 5,
+        "executionTime": 479,
+        "recordCount": 1
+      }
+    ]
   },
   {
     "id": "query_user_posts_v1",
@@ -118,10 +155,23 @@
     "id": "query_1757621678523",
     "created_at": "2025-09-11T20:14:38.523Z",
     "updated_at": "2025-09-11T20:14:38.523Z",
-    "execution_count": 1,
-    "last_executed": "2025-09-13T03:58:57.674Z",
+    "execution_count": 3,
+    "last_executed": "2025-09-13T05:35:14.290Z",
     "avg_execution_time": 13,
     "history": [
+      {
+        "id": "lineage_run_1757741714290",
+        "timestamp": "2025-09-13T05:35:14.290Z",
+        "sourceId": "postgres_v1",
+        "object": "customers",
+        "select": [
+          "id",
+          "name"
+        ],
+        "limit": 5,
+        "executionTime": 12,
+        "recordCount": 5
+      },
       {
         "id": "lineage_run_1757735937674",
         "timestamp": "2025-09-13T03:58:57.674Z",
@@ -134,6 +184,67 @@
         "limit": 5,
         "executionTime": 13,
         "recordCount": 5
+      }
+    ]
+  },
+  {
+    "id": "query_users_list_v1",
+    "name": "Users List",
+    "description": "List users from JSONPlaceholder",
+    "category": "analytics",
+    "tags": [
+      "rest",
+      "users"
+    ],
+    "query": {
+      "object": "users",
+      "select": [
+        "id",
+        "name",
+        "email"
+      ],
+      "sourceId": "rest_jsonplaceholder_v1",
+      "limit": 10
+    },
+    "dataSourceId": "rest_jsonplaceholder_v1",
+    "created_by": "admin",
+    "execution_count": 4,
+    "last_executed": "2025-09-13T05:35:56.496Z",
+    "avg_execution_time": 102,
+    "is_favorite": false,
+    "permissions": [
+      "read"
+    ],
+    "created_at": "2025-09-13T00:00:00.000Z",
+    "updated_at": "2025-09-13T00:00:00.000Z",
+    "history": [
+      {
+        "id": "lineage_run_1757741756496",
+        "timestamp": "2025-09-13T05:35:56.496Z",
+        "sourceId": "rest_jsonplaceholder_v1",
+        "object": "users",
+        "select": [
+          "id",
+          "name",
+          "email"
+        ],
+        "limit": 10,
+        "executionTime": 56,
+        "recordCount": 10
+      },
+      {
+        "id": "lineage_run_1757741742259",
+        "timestamp": "2025-09-13T05:35:42.259Z",
+        "sourceId": "rest_jsonplaceholder_v1",
+        "object": "users",
+        "select": [
+          "id",
+          "name",
+          "email"
+        ],
+        "limit": 10,
+        "executionTime": 315,
+        "recordCount": 10
       }
     ]
   }

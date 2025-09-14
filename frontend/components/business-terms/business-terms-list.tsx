@@ -7,81 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, BookOpen, MoreHorizontal, Edit, Trash2, GitBranch, Users, TrendingUp, CheckCircle, Clock, User, AlertTriangle } from "lucide-react"
+import { Plus, Search, BookOpen, MoreHorizontal, Edit, Trash2, GitBranch, Users, TrendingUp, Eye, User, CheckCircle } from "lucide-react"
+import Link from "next/link"
 import { AddBusinessTermDialog } from "./add-business-term-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-// Mock data - in real app this would come from API
-const mockBusinessTerms = [
-  {
-    id: "1",
-    name: "Active Customer",
-    description: "A customer who has made a purchase within the last 12 months and has an active account status.",
-    owner: "Sarah Johnson",
-    category: "Customer",
-    createdAt: "2024-01-15",
-    mappingCount: 3,
-    usageCount: 47,
-    tags: ["customer", "status", "revenue"],
-  },
-  {
-    id: "2",
-    name: "Opportunity Value",
-    description: "The total monetary value of a sales opportunity, including all line items and potential revenue.",
-    owner: "Mike Chen",
-    category: "Sales",
-    createdAt: "2024-01-20",
-    mappingCount: 2,
-    usageCount: 23,
-    tags: ["sales", "revenue", "opportunity"],
-  },
-  {
-    id: "3",
-    name: "Monthly Recurring Revenue",
-    description: "The predictable revenue that a company expects to receive every month from its customers.",
-    owner: "Emily Davis",
-    category: "Finance",
-    createdAt: "2024-02-01",
-    mappingCount: 1,
-    usageCount: 15,
-    tags: ["revenue", "subscription", "finance"],
-  },
-  {
-    id: "4",
-    name: "Lead Score",
-    description: "A numerical value assigned to leads based on their likelihood to convert to customers.",
-    owner: "Alex Rodriguez",
-    category: "Marketing",
-    createdAt: "2024-02-10",
-    mappingCount: 2,
-    usageCount: 31,
-    tags: ["lead", "scoring", "marketing"],
-  },
-  {
-    id: "5",
-    name: "Customer Lifetime Value",
-    description:
-      "The total revenue a business can expect from a single customer account throughout their relationship.",
-    owner: "Sarah Johnson",
-    category: "Customer",
-    createdAt: "2024-02-15",
-    mappingCount: 1,
-    usageCount: 8,
-    tags: ["customer", "value", "revenue"],
-  },
-  {
-    id: "6",
-    name: "Churn Rate",
-    description:
-      "The percentage of customers who stop using a company's product or service during a specific time period.",
-    owner: "Mike Chen",
-    category: "Customer",
-    createdAt: "2024-02-20",
-    mappingCount: 1,
-    usageCount: 12,
-    tags: ["customer", "retention", "metrics"],
-  },
-]
+import { API_CONFIG, buildApiUrl } from "@/lib/api-config"
 
 const categories = ["All", "Customer", "Sales", "Finance", "Marketing"]
 
@@ -91,50 +22,28 @@ export function BusinessTermsList() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
-  const [demoDataEnabled, setDemoDataEnabled] = useState<boolean | null>(null)
-  const [businessTerms, setBusinessTerms] = useState(mockBusinessTerms)
+  const [businessTerms, setBusinessTerms] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const focusedRef = useRef<HTMLDivElement | null>(null)
 
-  // Load demo data setting from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('ENABLE_DEMO_DATA')
-    if (stored !== null) {
-      const enabled = JSON.parse(stored)
-      setDemoDataEnabled(enabled)
-      if (!enabled) {
-        setBusinessTerms([]) // Clear demo data when disabled
-      } else {
-        setBusinessTerms(mockBusinessTerms) // Restore demo data when enabled
-      }
-    } else {
-      // If no stored value, default to true and store it
-      setDemoDataEnabled(true)
-      localStorage.setItem('ENABLE_DEMO_DATA', 'true')
-    }
-  }, [])
-
-  // Update when demo data setting changes
-  useEffect(() => {
-    if (demoDataEnabled !== null) {
-      if (!demoDataEnabled) {
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await fetch(buildApiUrl(API_CONFIG.endpoints.terms))
+        if (!res.ok) throw new Error('load_failed')
+        const arr = await res.json()
+        setBusinessTerms(arr)
+      } catch (e: any) {
+        setError(e?.message || 'failed')
         setBusinessTerms([])
-      } else {
-        setBusinessTerms(mockBusinessTerms)
+      } finally {
+        setLoading(false)
       }
     }
-  }, [demoDataEnabled])
-
-  // Listen for demo data setting changes from settings page
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'ENABLE_DEMO_DATA') {
-        const enabled = e.newValue ? JSON.parse(e.newValue) : true
-        setDemoDataEnabled(enabled)
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    load()
   }, [])
 
   const filteredTerms = businessTerms.filter((term) => {
@@ -266,39 +175,41 @@ export function BusinessTermsList() {
                       <Badge variant="outline" className={`text-xs font-medium border-current ${categoryTextColors[term.category as keyof typeof categoryTextColors] || 'text-gray-600'}`}>
                         {term.category}
                       </Badge>
-                      {term.usageCount > 20 && (
-                        <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <TrendingUp className="h-3 w-3" />
-                          <span>Popular</span>
-                        </div>
-                      )}
+                      {/* popularity badge removed (no usage count available) */}
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="opacity-60 hover:opacity-100">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Definition
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <GitBranch className="h-4 w-4 mr-2" />
-                        View Data Mappings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Users className="h-4 w-4 mr-2" />
-                        Manage Permissions
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Archive Term
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/terms/${term.id}`}>
+                        <Eye className="h-3.5 w-3.5 mr-1" /> View
+                      </Link>
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="opacity-60 hover:opacity-100">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Definition
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <GitBranch className="h-4 w-4 mr-2" />
+                          View Data Mappings
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Users className="h-4 w-4 mr-2" />
+                          Manage Permissions
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Archive Term
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -321,31 +232,15 @@ export function BusinessTermsList() {
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
                       <span className="text-xs font-medium text-muted-foreground">
-                        {term.owner.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {(term.owner || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </span>
                     </div>
-                    <span className="text-muted-foreground font-medium">{term.owner}</span>
-                  </div>
-                  <div className="flex gap-4 text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <GitBranch className="h-3 w-3" />
-                      <span className="text-xs">{term.mappingCount}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      <span className="text-xs">{term.usageCount}</span>
-                    </div>
+                    <span className="text-muted-foreground font-medium">{term.owner || 'Unassigned'}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Created {new Date(term.createdAt).toLocaleDateString()}</span>
-                  {term.usageCount > 10 && (
-                    <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Active</span>
-                    </div>
-                  )}
+                  <span>Created {(() => { const d = term.created_at || term.createdAt; return d ? new Date(d).toLocaleDateString() : '—'; })()}</span>
                 </div>
               </CardContent>
             </Card>
@@ -353,46 +248,20 @@ export function BusinessTermsList() {
         })}
       </div>
 
-      {filteredTerms.length === 0 && demoDataEnabled !== null && (
+      {filteredTerms.length === 0 && !loading && (
         <div className="text-center py-12">
-          {demoDataEnabled ? (
-            <>
-              <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No terms found</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery || selectedCategory !== "All"
-                  ? "Try adjusting your search or filter criteria."
-                  : "Get started by creating your first business term."}
-              </p>
-              {!searchQuery && selectedCategory === "All" && (
-                <Button onClick={() => setShowAddDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add New Term
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No Business Terms Available</h3>
-              <p className="text-muted-foreground mb-4">
-                Demo data is disabled and no real business terms are configured yet.
-              </p>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  To see sample data, enable demo data in{" "}
-                  <a href="/settings" className="text-primary hover:underline">
-                    Settings
-                  </a>
-                </p>
-                {!searchQuery && selectedCategory === "All" && (
-                  <Button onClick={() => setShowAddDialog(true)} variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Term
-                  </Button>
-                )}
-              </div>
-            </>
+          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">No terms found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchQuery || selectedCategory !== "All"
+              ? "Try adjusting your search or filter criteria."
+              : "Get started by creating your first business term."}
+          </p>
+          {!searchQuery && selectedCategory === "All" && (
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Term
+            </Button>
           )}
         </div>
       )}

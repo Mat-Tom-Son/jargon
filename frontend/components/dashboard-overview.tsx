@@ -5,97 +5,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Database, BookOpen, GitBranch, Activity, Plus, ArrowRight, ArrowUpRight, TrendingUp, CheckCircle, AlertTriangle, Zap, Users } from "lucide-react"
+import { Database, BookOpen, GitBranch, Activity, Plus, ArrowRight, ArrowUpRight, TrendingUp, CheckCircle, AlertTriangle, Zap } from "lucide-react"
 import Link from "next/link"
 import { HealthCheck } from "@/components/health-check"
 import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 export function DashboardOverview() {
-  const [demoDataEnabled, setDemoDataEnabled] = useState<boolean | null>(null)
   const [sources, setSources] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
   const [rules, setRules] = useState<any[]>([])
+  const [metrics, setMetrics] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Demo data
-  const demoSources = [
-    { id: "1", name: "Salesforce Production", type: "REST", status: "active", objectCount: 847 },
-    { id: "2", name: "Customer Database", type: "PostgreSQL", status: "active", objectCount: 23 },
-    { id: "3", name: "Analytics API", type: "REST", status: "pending", objectCount: 0 }
-  ]
-
-  const demoTerms = [
-    { id: "1", name: "Active Customer", category: "Customer" },
-    { id: "2", name: "Opportunity Value", category: "Sales" },
-    { id: "3", name: "Monthly Recurring Revenue", category: "Finance" },
-    { id: "4", name: "Lead Score", category: "Marketing" },
-    { id: "5", name: "Customer Lifetime Value", category: "Customer" },
-    { id: "6", name: "Churn Rate", category: "Customer" }
-  ]
-
-  const demoRules = [
-    { id: "1", termName: "Active Customer", sourceName: "Salesforce Production", status: "validated" },
-    { id: "2", termName: "Opportunity Value", sourceName: "Salesforce Production", status: "validated" },
-    { id: "3", termName: "Monthly Recurring Revenue", sourceName: "Customer Database", status: "draft" },
-    { id: "4", termName: "Lead Score", sourceName: "Analytics API", status: "error" }
-  ]
-
-  // Load demo data setting from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('ENABLE_DEMO_DATA')
-    if (stored !== null) {
-      const enabled = JSON.parse(stored)
-      setDemoDataEnabled(enabled)
-      if (!enabled) {
-        setSources([])
-        setTerms([])
-        setRules([])
-      } else {
-        setSources(demoSources)
-        setTerms(demoTerms)
-        setRules(demoRules)
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [sRes, tRes, rRes, mRes] = await Promise.all([
+          fetch(buildApiUrl(API_CONFIG.endpoints.sources)),
+          fetch(buildApiUrl(API_CONFIG.endpoints.terms)),
+          fetch(buildApiUrl(API_CONFIG.endpoints.rules)),
+          fetch(buildApiUrl(API_CONFIG.endpoints.semanticDebt.metrics))
+        ])
+        if (!sRes.ok || !tRes.ok || !rRes.ok || !mRes.ok) throw new Error('load_failed')
+        const [s, t, r, m] = await Promise.all([sRes.json(), tRes.json(), rRes.json(), mRes.json()])
+        setSources(s)
+        setTerms(t)
+        setRules(r)
+        setMetrics(m)
+      } catch (e: any) {
+        setError(e?.message || 'failed')
+      } finally {
+        setLoading(false)
       }
-    } else {
-      // If no stored value, default to true and store it
-      setDemoDataEnabled(true)
-      setSources(demoSources)
-      setTerms(demoTerms)
-      setRules(demoRules)
-      localStorage.setItem('ENABLE_DEMO_DATA', 'true')
     }
+    load()
   }, [])
 
-  // Update when demo data setting changes
-  useEffect(() => {
-    if (demoDataEnabled !== null) {
-      if (!demoDataEnabled) {
-        setSources([])
-        setTerms([])
-        setRules([])
-      } else {
-        setSources(demoSources)
-        setTerms(demoTerms)
-        setRules(demoRules)
-      }
-    }
-  }, [demoDataEnabled])
-
-  // Listen for demo data setting changes from settings page
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'ENABLE_DEMO_DATA') {
-        const enabled = e.newValue ? JSON.parse(e.newValue) : true
-        setDemoDataEnabled(enabled)
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
-
-  // Calculate dynamic stats
-  const activeSources = sources.filter(s => s.status === 'active').length
   const totalSources = sources.length
-  const validatedRules = rules.filter(r => r.status === 'validated').length
+  const activeSources = sources.filter(s => (s?.status || '').toLowerCase() === 'active').length
   const totalRules = rules.length
 
   return (
@@ -204,17 +154,7 @@ export function DashboardOverview() {
                 <div className="text-3xl font-bold text-green-900 dark:text-green-100">{totalRules}</div>
                 <div className="text-sm text-green-600 dark:text-green-400 font-medium">rules</div>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Validated: {validatedRules}</span>
-                  <span className="text-muted-foreground">Total: {totalRules}</span>
-                </div>
-                <Progress value={totalRules > 0 ? (validatedRules / totalRules) * 100 : 0} className="h-2" />
-              </div>
-              <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
-                <CheckCircle className="h-3 w-3" />
-                <span>{totalRules > 0 ? Math.round((validatedRules / totalRules) * 100) : 0}% validated</span>
-              </div>
+              <div className="text-xs text-muted-foreground">Total rules</div>
             </CardContent>
           </Link>
         </Card>
@@ -227,34 +167,17 @@ export function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {demoDataEnabled !== null && demoDataEnabled ? (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
-                    {rules.length > 0 ? (rules.length * 156).toLocaleString() : '1,247'}
-                  </div>
-                  <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">queries</div>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Activity className="h-3 w-3 text-orange-500" />
-                  <span className="text-orange-700 dark:text-orange-400 font-medium">Last 24 hours</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
-                  <ArrowUpRight className="h-3 w-3" />
-                  <span>Avg {rules.length > 0 ? Math.round(120 + (rules.length * 5)) : 120}ms response</span>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Query metrics unavailable
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Enable demo data in settings to see sample metrics
-                </p>
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+                {(metrics?.counts?.savedQueries || 0).toLocaleString()}
               </div>
-            )}
+              <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">saved queries</div>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <Activity className="h-3 w-3 text-orange-500" />
+              <span className="text-orange-700 dark:text-orange-400 font-medium">Published: {metrics?.counts?.publishedQueries || 0}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">Execution metrics coming soon</div>
           </CardContent>
         </Card>
 
@@ -267,39 +190,21 @@ export function DashboardOverview() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-            {demoDataEnabled !== null && demoDataEnabled ? (
-              <>
-                <div className="flex items-baseline gap-2">
-                  <div className="text-3xl font-bold text-red-900 dark:text-red-100">
-                    {rules.length > 0 ? Math.max(85 - (rules.filter(r => r.status === 'error').length * 5), 60) : 72}%
-                  </div>
-                  <div className="text-sm text-red-600 dark:text-red-400 font-medium">health score</div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      Current: {rules.length > 0 ? Math.max(85 - (rules.filter(r => r.status === 'error').length * 5), 60) : 72}%
-                    </span>
-                    <span className="text-muted-foreground">Target: 90%+</span>
-                  </div>
-                  <Progress value={rules.length > 0 ? Math.max(85 - (rules.filter(r => r.status === 'error').length * 5), 60) : 72} className="h-2" />
-                </div>
-                <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
-                  <TrendingUp className="h-3 w-3" />
-                  <span>${rules.length > 0 ? (rules.length * 3.5).toFixed(0) : 45}K monthly savings potential</span>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Semantic debt analysis unavailable
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Enable demo data in settings to see sample analysis
-                </p>
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-bold text-red-900 dark:text-red-100">{metrics?.overallScore ?? 0}%</div>
+              <div className="text-sm text-red-600 dark:text-red-400 font-medium">health score</div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Current: {metrics?.overallScore ?? 0}%</span>
+                <span className="text-muted-foreground">Target: 90%+</span>
               </div>
-            )}
+              <Progress value={metrics?.overallScore ?? 0} className="h-2" />
+            </div>
+            <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
+              <TrendingUp className="h-3 w-3" />
+              <span>${Math.round((metrics?.monthlyWaste || 0) / 1000)}K monthly savings potential</span>
+            </div>
           </CardContent>
           </Link>
         </Card>
@@ -370,7 +275,7 @@ export function DashboardOverview() {
                   <div>
                     <p className="font-medium">{source.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {source.type} • {source.objectCount} {source.type === 'PostgreSQL' ? 'tables' : 'objects'}
+                      {source.kind}
                     </p>
                   </div>
                 </div>
@@ -382,9 +287,7 @@ export function DashboardOverview() {
             {sources.length === 0 && (
               <div className="text-center py-8">
                 <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {demoDataEnabled ? "No data sources configured yet" : "Demo data is disabled"}
-                </p>
+                <p className="text-sm text-muted-foreground">No data sources configured yet</p>
               </div>
             )}
           </CardContent>
@@ -407,35 +310,19 @@ export function DashboardOverview() {
             {rules.slice(0, 3).map((rule) => (
               <div key={rule.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  {rule.status === 'validated' ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : rule.status === 'error' ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  )}
+                  <CheckCircle className="h-4 w-4 text-green-500" />
                   <div>
-                    <p className="font-medium">{rule.termName} → {rule.sourceName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {rule.termName}.{rule.sourceName.split(' ')[0].toLowerCase()}_field
-                    </p>
+                    <p className="font-medium">{rule.termId} → {rule.sourceId}</p>
+                    <p className="text-sm text-muted-foreground">{rule.object}</p>
                   </div>
                 </div>
-                <Badge variant={
-                  rule.status === 'validated' ? "default" :
-                  rule.status === 'error' ? "destructive" : "outline"
-                }>
-                  {rule.status === 'validated' ? 'Validated' :
-                   rule.status === 'error' ? 'Error' : 'Needs Review'}
-                </Badge>
+                <Badge variant="outline">Rule</Badge>
               </div>
             ))}
             {rules.length === 0 && (
               <div className="text-center py-8">
                 <AlertTriangle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {demoDataEnabled ? "No mapping rules created yet" : "Demo data is disabled"}
-                </p>
+                <p className="text-sm text-muted-foreground">No mapping rules created yet</p>
               </div>
             )}
           </CardContent>

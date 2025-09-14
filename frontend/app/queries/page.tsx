@@ -13,14 +13,25 @@ import Link from "next/link"
 export default function SavedQueriesPage() {
   const [queries, setQueries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [termsMap, setTermsMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(buildApiUrl(API_CONFIG.endpoints.queries))
-        if (!res.ok) return
-        const data = await res.json()
-        setQueries(Array.isArray(data) ? data : [])
+        const [qr, tr] = await Promise.all([
+          fetch(buildApiUrl(API_CONFIG.endpoints.queries)),
+          fetch(buildApiUrl(API_CONFIG.endpoints.terms))
+        ])
+        if (qr.ok) {
+          const data = await qr.json()
+          setQueries(Array.isArray(data) ? data : [])
+        }
+        if (tr.ok) {
+          const ts = await tr.json()
+          const m: Record<string, string> = {}
+          ts.forEach((t: any) => { m[t.id] = t.name || t.id })
+          setTermsMap(m)
+        }
       } finally {
         setLoading(false)
       }
@@ -32,6 +43,7 @@ export default function SavedQueriesPage() {
     if (!q?.query) return
     try {
       sessionStorage.setItem('QB_LOAD_QUERY', JSON.stringify(q.query))
+      sessionStorage.setItem('QB_LOAD_QUERY_ID', q.id)
       window.location.href = '/test'
     } catch {}
   }
@@ -91,6 +103,13 @@ export default function SavedQueriesPage() {
                         ))}
                       </div>
                     )}
+                    {Array.isArray(q.termIds) && q.termIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {q.termIds.map((tid: string) => (
+                          <Badge key={tid} variant="secondary" className="text-xs">{termsMap[tid] || tid}</Badge>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => openInBuilder(q)}>
                         <Play className="h-4 w-4 mr-2" />
@@ -114,5 +133,3 @@ export default function SavedQueriesPage() {
     </div>
   )
 }
-
-

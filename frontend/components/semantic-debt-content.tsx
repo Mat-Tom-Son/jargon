@@ -34,18 +34,8 @@ export function SemanticDebtContent() {
         setMetrics(data);
       } catch (err) {
         console.error('Failed to fetch semantic debt metrics:', err);
-        setError('Failed to load semantic debt metrics. Using fallback data.');
-
-        // Fallback to mock data
-        setMetrics({
-          overallScore: 72,
-          termCoverage: 65,
-          lineageCompleteness: 78,
-          wranglingMinutes: 45,
-          reworkTickets: 12,
-          monthlyWaste: 45000,
-          annualWaste: 540000
-        });
+        setError('Failed to load semantic debt metrics.');
+        setMetrics(null);
       } finally {
         setLoading(false);
       }

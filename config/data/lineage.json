@@ -796,5 +796,261 @@
       "queryTime": 10.4,
       "networkTime": 2.6
     }
+  },
+  {
+    "id": "lineage_run_1757741714290",
+    "type": "query_execution",
+    "timestamp": "2025-09-13T05:35:14.290Z",
+    "queryId": "query_1757621678523",
+    "dataSourceId": "postgres_v1",
+    "query": {
+      "object": "customers",
+      "select": [
+        "id",
+        "name"
+      ],
+      "sourceId": "postgres_v1",
+      "limit": 5
+    },
+    "results": {
+      "recordCount": 5,
+      "executionTime": 12,
+      "dataSize": 169
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "development",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 12,
+      "queryTime": 9.600000000000001,
+      "networkTime": 2.4000000000000004
+    }
+  },
+  {
+    "id": "lineage_run_1757741742259",
+    "type": "query_execution",
+    "timestamp": "2025-09-13T05:35:42.259Z",
+    "queryId": "query_users_list_v1",
+    "dataSourceId": "rest_jsonplaceholder_v1",
+    "query": {
+      "object": "users",
+      "select": [
+        "id",
+        "name",
+        "email"
+      ],
+      "sourceId": "rest_jsonplaceholder_v1",
+      "limit": 10
+    },
+    "results": {
+      "recordCount": 10,
+      "executionTime": 315,
+      "dataSize": 4094
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "production",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 315,
+      "queryTime": 252,
+      "networkTime": 63
+    }
+  },
+  {
+    "id": "lineage_run_1757741756496",
+    "type": "query_execution",
+    "timestamp": "2025-09-13T05:35:56.496Z",
+    "queryId": "query_users_list_v1",
+    "dataSourceId": "rest_jsonplaceholder_v1",
+    "query": {
+      "object": "users",
+      "select": [
+        "id",
+        "name",
+        "email"
+      ],
+      "sourceId": "rest_jsonplaceholder_v1",
+      "limit": 10
+    },
+    "results": {
+      "recordCount": 10,
+      "executionTime": 56,
+      "dataSize": 4094
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "production",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 56,
+      "queryTime": 44.800000000000004,
+      "networkTime": 11.200000000000001
+    }
+  },
+  {
+    "id": "lineage_run_1757741789954",
+    "type": "query_execution",
+    "timestamp": "2025-09-13T05:36:29.954Z",
+    "queryId": "query_customer_summary_v1",
+    "dataSourceId": "postgres_v1",
+    "query": {
+      "object": "customers",
+      "select": [
+        "id",
+        "name",
+        "is_active",
+        "created_at"
+      ],
+      "sourceId": "postgres_v1",
+      "limit": 50
+    },
+    "results": {
+      "recordCount": 6,
+      "executionTime": 12,
+      "dataSize": 545
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "development",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 12,
+      "queryTime": 9.600000000000001,
+      "networkTime": 2.4000000000000004
+    }
+  },
+  {
+    "id": "lineage_run_1757741810338",
+    "type": "query_execution",
+    "timestamp": "2025-09-13T05:36:50.338Z",
+    "queryId": "query_openfda_ndc_ibuprofen_v1",
+    "dataSourceId": "openfda_v1",
+    "query": {
+      "object": "drug/ndc.json",
+      "select": [
+        "id",
+        "name",
+        "region",
+        "is_active"
+      ],
+      "sourceId": "openfda_v1",
+      "limit": 5,
+      "params": {
+        "search": "brand_name:ibuprofen"
+      }
+    },
+    "results": {
+      "recordCount": 1,
+      "executionTime": 479,
+      "dataSize": 8656
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "production",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 479,
+      "queryTime": 383.20000000000005,
+      "networkTime": 95.80000000000001
+    }
+  },
+  {
+    "id": "lineage_run_1757741848163",
+    "type": "query_execution",
+    "timestamp": "2025-09-13T05:37:28.163Z",
+    "queryId": null,
+    "dataSourceId": "openfda_v1",
+    "query": {
+      "object": "drug/ndc.json",
+      "select": [
+        "id",
+        "name",
+        "region",
+        "is_active"
+      ],
+      "sourceId": "openfda_v1",
+      "limit": 5,
+      "params": {
+        "search": "brand_name:percocet"
+      }
+    },
+    "results": {
+      "recordCount": 1,
+      "executionTime": 454,
+      "dataSize": 5115
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "production",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 454,
+      "queryTime": 363.20000000000005,
+      "networkTime": 90.80000000000001
+    }
+  },
+  {
+    "id": "lineage_run_1757828660588",
+    "type": "query_execution",
+    "timestamp": "2025-09-14T05:44:20.588Z",
+    "queryId": null,
+    "dataSourceId": "openfda_v1",
+    "query": {
+      "object": "drug/ndc.json",
+      "select": [
+        "brand_name",
+        "generic_name",
+        "product_ndc"
+      ],
+      "limit": 5,
+      "sourceId": "openfda_v1",
+      "params": {
+        "search": "brand_name:ibuprofen"
+      }
+    },
+    "results": {
+      "recordCount": 1,
+      "executionTime": 560,
+      "dataSize": 8656
+    },
+    "upstream": [],
+    "downstream": [],
+    "metadata": {
+      "user": "anonymous",
+      "environment": "production",
+      "success": true,
+      "ip": "::1"
+    },
+    "performance": {
+      "totalTime": 560,
+      "queryTime": 448,
+      "networkTime": 112
+    }
   }
 ]

@@ -12,11 +12,13 @@ export class RestConnector implements Connector {
   baseUrl: string;
   manifest?: { endpoints: string[] };
   private defaultHeaders?: Record<string, string>;
-  constructor(id: string, cfg: { baseUrl: string; manifest?: { endpoints: string[] }; headers?: Record<string, string> }) {
+  private resultPath?: string;
+  constructor(id: string, cfg: { baseUrl: string; manifest?: { endpoints: string[] }; headers?: Record<string, string>; resultPath?: string }) {
     this.id = id;
     this.baseUrl = cfg.baseUrl.replace(/\/+$/, '');
     this.manifest = cfg.manifest;
     this.defaultHeaders = cfg.headers;
+    this.resultPath = cfg.resultPath;
   }
   async listEndpoints() {
     if (this.manifest) return this.manifest.endpoints;
@@ -27,13 +29,7 @@ export class RestConnector implements Connector {
     try {
       const res = await fetch(url, { headers: this.defaultHeaders });
       const json: any = await res.json();
-      const results = Array.isArray(json)
-        ? json
-        : Array.isArray(json?.results)
-          ? json.results
-          : Array.isArray(json?.data)
-            ? json.data
-            : json ? [json] : [];
+      const results = this.extractResults(json);
       return results;
     } catch {
       return [];
@@ -45,13 +41,7 @@ export class RestConnector implements Connector {
     try {
       const res = await fetch(url, { headers: this.defaultHeaders });
       const json: any = await res.json();
-      rows = Array.isArray(json)
-        ? json
-        : Array.isArray(json?.results)
-          ? json.results
-          : Array.isArray(json?.data)
-            ? json.data
-            : json ? [json] : [];
+      rows = this.extractResults(json);
     } catch {
       rows = [];
     }
@@ -85,5 +75,31 @@ export class RestConnector implements Connector {
     }
     const qs = params.length ? `?${params.join('&')}` : '';
     return `${this.baseUrl}${endpoint}${qs}`;
+  }
+  private extractResults(json: any): any[] {
+    if (!json) return [];
+    // Explicit result path wins
+    if (this.resultPath) {
+      const v = this.getByPath(json, this.resultPath);
+      if (Array.isArray(v)) return v;
+      if (v && typeof v === 'object') return [v];
+    }
+    // Common envelopes
+    const candidates = [
+      (j: any) => (Array.isArray(j) ? j : null),
+      (j: any) => (Array.isArray(j?.results) ? j.results : null),
+      (j: any) => (Array.isArray(j?.data) ? j.data : null),
+      (j: any) => (Array.isArray(j?.items) ? j.items : null),
+      (j: any) => (Array.isArray(j?.records) ? j.records : null),
+      (j: any) => (Array.isArray(j?.hits?.hits) ? j.hits.hits : null)
+    ];
+    for (const fn of candidates) {
+      const out = fn(json);
+      if (out) return out;
+    }
+    return [json];
+  }
+  private getByPath(obj: any, path: string): any {
+    return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
   }
 }

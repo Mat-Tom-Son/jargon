@@ -16,27 +16,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react"
 import { FieldMappingEditor } from "./field-mapping-editor"
+import { API_CONFIG, buildApiUrl } from "@/lib/api-config"
 
 interface CreateMappingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreateMapping?: (mapping: any) => void
+  onCreateMapping?: (mapping?: any) => void
+  mode?: 'create' | 'edit'
+  initialRule?: {
+    id?: string
+    termId: string
+    sourceId: string
+    objectName: string
+    fieldMappings: Array<{ semantic: string; concrete: string; expression?: string }>
+    expression?: string
+  }
+  prefill?: {
+    termId?: string
+    sourceId?: string
+    objectName?: string
+  }
 }
 
 
-// Mock objects for now (would be fetched from data source schema in real implementation)
-const mockObjects = {
-  "postgres": [
-    { name: "customers", recordCount: 2156 },
-    { name: "orders", recordCount: 8934 },
-    { name: "subscriptions", recordCount: 1543 },
-  ],
-  "salesforce_demo": [
-    { name: "Account", recordCount: 1247 },
-    { name: "Contact", recordCount: 3891 },
-    { name: "Opportunity", recordCount: 892 },
-  ],
-}
+type DiscoveredObject = { name: string; fields: { name: string; type?: string; nullable?: boolean }[] }
 
 const steps = [
   { id: 1, name: "Core Info", description: "Select term and data source" },
@@ -45,10 +48,12 @@ const steps = [
   { id: 4, name: "Review Mapping", description: "Confirm your mapping" },
 ]
 
-export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: CreateMappingDialogProps) {
+export function CreateMappingDialog({ open, onOpenChange, onCreateMapping, mode = 'create', initialRule, prefill }: CreateMappingDialogProps) {
   // Real data state
   const [realTerms, setRealTerms] = useState([])
   const [realSources, setRealSources] = useState([])
+  const [discovered, setDiscovered] = useState<{ objects: DiscoveredObject[] } | null>(null)
+  const [suggestedFields, setSuggestedFields] = useState<string[]>([])
 
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -57,14 +62,44 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
     objectName: "",
     fieldMappings: [] as Array<{ semantic: string; concrete: string; expression: string }>,
   })
+  // Filters support OR groups of AND rows: groups[gi][ri]
+  const [filtersGroups, setFiltersGroups] = useState<Array<Array<{ field: string; op: string; value: string }>>>([])
+  const allowedOps = ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN']
 
-  // Fetch real data on component mount
+  // Prefill for edit
+  useEffect(() => {
+    if (open && initialRule) {
+      setFormData({
+        termId: initialRule.termId,
+        sourceId: initialRule.sourceId,
+        objectName: initialRule.objectName,
+        fieldMappings: (initialRule.fieldMappings || []).map(m => ({ semantic: m.semantic, concrete: m.concrete, expression: m.expression || '' }))
+      })
+      // Parse existing expression into OR groups of AND rows
+      const parsed = parseExpression(initialRule.expression || '')
+      setFiltersGroups(parsed.length ? parsed : [[{ field: '', op: '=', value: '' }]])
+    }
+  }, [open, initialRule])
+
+  // Prefill for create when provided (e.g., from source detail CTA)
+  useEffect(() => {
+    if (open && !initialRule && prefill) {
+      setFormData(prev => ({
+        termId: prefill.termId || prev.termId,
+        sourceId: prefill.sourceId || prev.sourceId,
+        objectName: prefill.objectName || prev.objectName,
+        fieldMappings: prev.fieldMappings
+      }))
+    }
+  }, [open, prefill, initialRule])
+
+  // Fetch real data on component open
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [termsRes, sourcesRes] = await Promise.all([
-          fetch('http://localhost:3001/terms'),
-          fetch('http://localhost:3001/sources')
+          fetch(buildApiUrl(API_CONFIG.endpoints.terms)),
+          fetch(buildApiUrl(API_CONFIG.endpoints.sources))
         ]);
 
         if (termsRes.ok) {
@@ -86,9 +121,63 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
     }
   }, [open]);
 
+  // Discover objects/fields from selected source
+  useEffect(() => {
+    const run = async () => {
+      if (!formData.sourceId) { setDiscovered(null); return; }
+      try {
+        const url = buildApiUrl(API_CONFIG.endpoints.source(formData.sourceId) + '/discover')
+        const res = await fetch(url)
+        if (!res.ok) throw new Error('discover_failed')
+        const json = await res.json()
+        setDiscovered(json || { objects: [] })
+      } catch (e) {
+        console.warn('Discovery failed', e)
+        setDiscovered({ objects: [] })
+      }
+    }
+    run()
+  }, [formData.sourceId])
+
+  // Suggest fields from saved queries for source+object
+  useEffect(() => {
+    const run = async () => {
+      if (!formData.sourceId || !formData.objectName) { setSuggestedFields([]); return; }
+      try {
+        const res = await fetch(buildApiUrl(API_CONFIG.endpoints.queries))
+        if (!res.ok) throw new Error('queries_failed')
+        const arr = await res.json()
+        const set = new Set<string>()
+        ;(arr || []).forEach((q: any) => {
+          const srcOk = (q.dataSourceId || q.query?.sourceId) === formData.sourceId
+          const objOk = String(q.query?.object || '').toLowerCase() === String(formData.objectName).toLowerCase()
+          if (srcOk && objOk && Array.isArray(q.query?.select)) {
+            q.query.select.forEach((f: any) => typeof f === 'string' && set.add(f))
+          }
+        })
+        const list = Array.from(set)
+        setSuggestedFields(list)
+        if (formData.fieldMappings.length === 0 && list.length) {
+          const prefill = list.slice(0, 12).map(f => ({ semantic: f, concrete: f, expression: f }))
+          setFormData(prev => ({ ...prev, fieldMappings: prefill }))
+        }
+      } catch (e) {
+        console.warn('Query suggestion failed', e)
+        setSuggestedFields([])
+      }
+    }
+    run()
+  }, [formData.sourceId, formData.objectName])
+
   const selectedTerm = realTerms.find((t) => t.id === formData.termId)
   const selectedSource = realSources.find((s) => s.id === formData.sourceId)
-  const availableObjects = formData.sourceId ? mockObjects[formData.sourceId as keyof typeof mockObjects] || [] : []
+  const availableObjects = (discovered?.objects || []).map(o => ({ name: o.name }))
+  const availableFields = (() => {
+    const obj = (discovered?.objects || []).find(o => o.name === formData.objectName)
+    const discoveredFields = obj ? obj.fields.map(f => f.name) : []
+    const set = new Set<string>([...discoveredFields, ...suggestedFields])
+    return Array.from(set)
+  })()
 
   const handleNext = () => {
     if (currentStep < 4) {
@@ -107,26 +196,28 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
       const selectedTerm = realTerms.find(t => t.id === formData.termId)
       const selectedSource = realSources.find(s => s.id === formData.sourceId)
 
-      // Create the mapping rule data
+      // Build the mapping rule from configured field mappings
+      const fields = Array.from(new Set((formData.fieldMappings || []).map(m => m.semantic).filter(Boolean)))
+      const fieldMappings: Record<string, string> = {}
+      ;(formData.fieldMappings || []).forEach(m => { if (m.semantic && m.concrete) fieldMappings[m.semantic] = m.concrete })
       const ruleData = {
         termId: formData.termId,
         sourceId: formData.sourceId,
         object: formData.objectName,
-        expression: `is_active = true`, // Default expression - would be more sophisticated in real implementation
-        fields: ['id', 'name', 'region', 'is_active'], // Default fields
-        fieldMappings: {
-          id: 'id',
-          name: 'name',
-          region: 'region',
-          is_active: 'is_active'
-        }
+        expression: buildExpression(filtersGroups),
+        fields,
+        fieldMappings
       };
 
       // Save to API
-      const response = await fetch('http://localhost:3001/rules', {
-        method: 'POST',
+      const isEdit = mode === 'edit' && initialRule?.id
+      const url = isEdit ? buildApiUrl(`/rules/${encodeURIComponent(String(initialRule?.id))}`) : buildApiUrl(API_CONFIG.endpoints.rules)
+      const method = isEdit ? 'PUT' : 'POST'
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
+          ...(process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ? { 'x-api-key': process.env.NEXT_PUBLIC_ADMIN_API_TOKEN } : {})
         },
         body: JSON.stringify(ruleData),
       });
@@ -163,14 +254,95 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
           fieldMappings: [],
         });
 
-        // Simple refresh for now
-        window.location.reload();
+        // refresh via callback
+        onCreateMapping?.(newRule)
       } else {
         console.error("Failed to create mapping rule");
       }
     } catch (error) {
       console.error("Error creating mapping rule:", error);
     }
+  }
+
+  function buildExpression(groups: Array<Array<{ field: string; op: string; value: string }>>): string {
+    if (!groups || !groups.length) return ''
+    const groupExprs = groups.map(rows => {
+      const parts = rows
+        .filter(r => r.field && r.op && (r.value !== undefined))
+        .map(r => `${r.field} ${r.op} ${formatValue(r.value, r.op)}`)
+      if (!parts.length) return ''
+      return parts.length > 1 ? `(${parts.join(' AND ')})` : parts[0]
+    }).filter(Boolean)
+    return groupExprs.join(' OR ')
+  }
+  function formatValue(v: string, op: string): string {
+    if (op === 'IN') {
+      // comma-separated list
+      const items = v.split(',').map(s => s.trim()).filter(Boolean).map(x => quoteIfNeeded(x))
+      return `(${items.join(', ')})`
+    }
+    return quoteIfNeeded(v)
+  }
+  function quoteIfNeeded(v: string): string {
+    // naive number detection
+    if (/^-?\d+(?:\.\d+)?$/.test(v)) return v
+    // wrap strings in single quotes, escape existing
+    return `'${v.replace(/'/g, "''")}'`
+  }
+
+  function parseExpression(expr: string): Array<Array<{ field: string; op: string; value: string }>> {
+    const groups: Array<Array<{ field: string; op: string; value: string }>> = []
+    if (!expr || typeof expr !== 'string') return groups
+    const orParts = splitTopLevel(expr, /\bOR\b/i)
+    for (const orPart of orParts) {
+      const trimmed = orPart.trim().replace(/^\((.*)\)$/s, '$1').trim()
+      const andParts = splitTopLevel(trimmed, /\bAND\b/i)
+      const rows: Array<{ field: string; op: string; value: string }> = []
+      for (const andPart of andParts) {
+        const p = andPart.trim()
+        if (!p) continue
+        const m = p.match(/^(\S+)\s*(=|!=|>=|<=|>|<|LIKE|IN)\s*(.+)$/i)
+        if (!m) continue
+        const [, field, opRaw, rhsRaw] = m
+        const op = opRaw.toUpperCase()
+        if (op === 'IN') {
+          const inner = rhsRaw.trim().replace(/^\(/, '').replace(/\)$/, '')
+          const vals = inner.split(',').map(s => s.trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1')).filter(Boolean)
+          rows.push({ field, op, value: vals.join(',') })
+        } else {
+          const val = rhsRaw.trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1')
+          rows.push({ field, op, value: val })
+        }
+      }
+      if (rows.length) groups.push(rows)
+    }
+    return groups
+  }
+
+  function splitTopLevel(input: string, sep: RegExp): string[] {
+    const out: string[] = []
+    let depth = 0
+    let token = ''
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i]
+      if (ch === '(') { depth++; token += ch; continue }
+      if (ch === ')') { depth = Math.max(0, depth - 1); token += ch; continue }
+      if (depth === 0) {
+        // attempt sep match at this position
+        const rest = input.slice(i)
+        const m = rest.match(/^\s*(AND|OR)\b/i)
+        if (m && sep.test(m[1])) {
+          if (token.trim()) out.push(token.trim())
+          token = ''
+          // skip matched operator
+          i += m[0].length - 1
+          continue
+        }
+      }
+      token += ch
+    }
+    if (token.trim()) out.push(token.trim())
+    return out
   }
 
   const canProceed = () => {
@@ -279,7 +451,7 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
                         <Badge variant="outline">{selectedSource.name}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {selectedTerm.category} • {selectedSource.type}
+                        {selectedTerm.category} • {selectedSource.kind}
                       </div>
                     </div>
                   </CardContent>
@@ -306,7 +478,9 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
                         <CardTitle className="text-lg">{object.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <CardDescription>{object.recordCount.toLocaleString()} records</CardDescription>
+                        <CardDescription>
+                          Discovered fields: {(discovered?.objects.find(o => o.name === object.name)?.fields.length || 0)}
+                        </CardDescription>
                       </CardContent>
                     </Card>
                   ))}
@@ -315,7 +489,7 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
             </div>
           )}
 
-          {/* Step 3: Field Mapping */}
+          {/* Step 3: Field Mapping + Filters */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <FieldMappingEditor
@@ -323,8 +497,74 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
                 sourceName={selectedSource?.name || ""}
                 objectName={formData.objectName}
                 fieldMappings={formData.fieldMappings}
+                concreteFields={availableFields}
                 onFieldMappingsChange={(mappings) => setFormData({ ...formData, fieldMappings: mappings })}
               />
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filters</CardTitle>
+                  <CardDescription>Compose filters with AND inside groups; groups are OR-ed</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {filtersGroups.map((group, gi) => (
+                    <div key={gi} className="rounded-md border p-3 space-y-3">
+                      <div className="text-xs font-medium opacity-70">Group {gi + 1} (AND)</div>
+                      {group.map((row, ri) => (
+                        <div key={ri} className="grid grid-cols-12 gap-2 items-center">
+                          <div className="col-span-5">
+                            <Label className="text-xs">Field</Label>
+                            <Select value={row.field} onValueChange={(v) => setFiltersGroups(prev => prev.map((g, i) => i===gi ? g.map((r,j) => j===ri ? { ...r, field: v } : r) : g))}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select field" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableFields.map(f => (
+                                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-xs">Op</Label>
+                            <Select value={row.op} onValueChange={(v) => setFiltersGroups(prev => prev.map((g, i) => i===gi ? g.map((r,j) => j===ri ? { ...r, op: v } : r) : g))}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="=" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allowedOps.map(op => (
+                                  <SelectItem key={op} value={op}>{op}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="col-span-5">
+                            <Label className="text-xs">Value</Label>
+                            <input
+                              className="w-full h-9 rounded border px-2 text-sm bg-background"
+                              value={row.value}
+                              placeholder={row.op === 'IN' ? 'a,b,c' : 'value'}
+                              onChange={(e) => setFiltersGroups(prev => prev.map((g, i) => i===gi ? g.map((r,j) => j===ri ? { ...r, value: e.target.value } : r) : g))}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={() => setFiltersGroups(prev => prev.map((g,i) => i===gi ? [...g, { field: '', op: '=', value: '' }] : g))}>Add Filter Row</Button>
+                        {group.length > 0 && (
+                          <Button type="button" variant="ghost" onClick={() => setFiltersGroups(prev => prev.map((g,i) => i===gi ? [] : g))}>Clear Group</Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setFiltersGroups(prev => [...prev, [{ field: '', op: '=', value: '' }]])}>Add OR Group</Button>
+                    {filtersGroups.length > 0 && (
+                      <Button type="button" variant="ghost" onClick={() => setFiltersGroups([])}>Clear All</Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -414,7 +654,7 @@ export function CreateMappingDialog({ open, onOpenChange, onCreateMapping }: Cre
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={!canProceed()}>
-                Create Mapping
+                {mode === 'edit' ? 'Save Changes' : 'Create Mapping'}
               </Button>
             )}
           </div>

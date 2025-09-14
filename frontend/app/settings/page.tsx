@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { Settings, Database, Cloud, Globe, CheckCircle, AlertCircle, RefreshCw, Eye, EyeOff } from "lucide-react"
+import { Settings, Database, Cloud, Globe, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
+import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
 
 interface Integration {
   name: string
@@ -47,16 +48,11 @@ export default function SettingsPage() {
     DB_USER: '',
     DB_PASSWORD: '',
 
-    // Salesforce
-    SALESFORCE_INSTANCE_URL: '',
-    SALESFORCE_ACCESS_TOKEN: '',
+    // Removed Salesforce (stub previously)
 
     // Server
     PORT: '3001',
-    NODE_ENV: 'development',
-
-    // Demo Data
-    ENABLE_DEMO_DATA: true
+    NODE_ENV: 'development'
   })
 
   const { toast } = useToast()
@@ -67,7 +63,7 @@ export default function SettingsPage() {
 
   const loadConfig = async () => {
     try {
-      const response = await fetch('http://localhost:3001/config/status')
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.config.status))
       if (response.ok) {
         const data = await response.json()
         setConfig(data)
@@ -76,8 +72,7 @@ export default function SettingsPage() {
         setFormData(prev => ({
           ...prev,
           DATABASE_URL: process.env.NEXT_PUBLIC_DATABASE_URL || '',
-          SALESFORCE_INSTANCE_URL: process.env.NEXT_PUBLIC_SALESFORCE_INSTANCE_URL || '',
-          SALESFORCE_ACCESS_TOKEN: process.env.NEXT_PUBLIC_SALESFORCE_ACCESS_TOKEN || '',
+          
           PORT: data.environment.port.toString(),
           NODE_ENV: data.environment.nodeEnv
         }))
@@ -100,10 +95,11 @@ export default function SettingsPage() {
     // Clear any existing success state when starting a new update
     setSaveSuccess(false)
     try {
-      const response = await fetch('http://localhost:3001/config/update', {
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.config.update), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ? { 'x-api-key': process.env.NEXT_PUBLIC_ADMIN_API_TOKEN } : {})
         },
         body: JSON.stringify(formData),
       })
@@ -112,15 +108,6 @@ export default function SettingsPage() {
         const result = await response.json()
         setConfig(result)
         setSaveSuccess(true)
-
-        // Save demo data setting to localStorage for immediate effect
-        localStorage.setItem('ENABLE_DEMO_DATA', JSON.stringify(formData.ENABLE_DEMO_DATA))
-
-        // Dispatch storage event to notify other components
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'ENABLE_DEMO_DATA',
-          newValue: JSON.stringify(formData.ENABLE_DEMO_DATA)
-        }))
 
         toast({
           title: "🎉 Configuration Saved Successfully!",
@@ -277,45 +264,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-      {/* Demo Data Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {formData.ENABLE_DEMO_DATA ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-            Demo Data Settings
-          </CardTitle>
-          <CardDescription>
-            Control whether demo/mock data is displayed in the application
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="demo-data-toggle" className="text-base font-medium">
-                Enable Demo Data
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Show sample data sources, business terms, and mapping rules when real data is not available
-              </p>
-            </div>
-            <Switch
-              id="demo-data-toggle"
-              checked={formData.ENABLE_DEMO_DATA}
-              onCheckedChange={(checked) =>
-                setFormData(prev => ({ ...prev, ENABLE_DEMO_DATA: checked }))
-              }
-            />
-          </div>
-
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Note:</strong> When demo data is disabled, you will only see data from your configured integrations.
-              Make sure your PostgreSQL and Salesforce connections are properly configured.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      {/* Removed Demo Data Configuration */}
 
       {/* Integration Status */}
       <Card>
@@ -431,36 +380,7 @@ export default function SettingsPage() {
 
           <Separator />
 
-          {/* Salesforce Configuration */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Cloud className="h-5 w-5" />
-              <h3 className="text-lg font-semibold">Salesforce Configuration</h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sf_instance_url">Instance URL</Label>
-                <Input
-                  id="sf_instance_url"
-                  placeholder="https://your-org.salesforce.com"
-                  value={formData.SALESFORCE_INSTANCE_URL}
-                  onChange={(e) => setFormData(prev => ({ ...prev, SALESFORCE_INSTANCE_URL: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="sf_access_token">Access Token</Label>
-                <Input
-                  id="sf_access_token"
-                  type="password"
-                  placeholder="Your Salesforce access token"
-                  value={formData.SALESFORCE_ACCESS_TOKEN}
-                  onChange={(e) => setFormData(prev => ({ ...prev, SALESFORCE_ACCESS_TOKEN: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
+          {/* Salesforce removed */}
 
           <Separator />
 

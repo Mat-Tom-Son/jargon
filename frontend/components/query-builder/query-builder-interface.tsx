@@ -25,81 +25,7 @@ const sampleQuery = `{
   "params": { "search": "brand_name:ibuprofen" }
 }`
 
-// Mock response data
-const mockResponse = {
-  data: [
-    {
-      "active_customer.id": "001",
-      "active_customer.name": "Acme Corp",
-      "active_customer.email": "contact@acme.com",
-      "opportunity_value.amount": 25000,
-      "opportunity_value.stage": "Negotiation",
-    },
-    {
-      "active_customer.id": "002",
-      "active_customer.name": "TechStart Inc",
-      "active_customer.email": "hello@techstart.com",
-      "opportunity_value.amount": 15000,
-      "opportunity_value.stage": "Proposal",
-    },
-    {
-      "active_customer.id": "003",
-      "active_customer.name": "Global Solutions",
-      "active_customer.email": "info@globalsolutions.com",
-      "opportunity_value.amount": 50000,
-      "opportunity_value.stage": "Closed Won",
-    },
-  ],
-  lineage: {
-    sources: [
-      {
-        name: "Salesforce Production",
-        type: "REST",
-        objects: ["Account", "Opportunity"],
-        fields: ["Id", "Name", "Email", "Active__c", "Amount", "StageName"],
-      },
-    ],
-    mappings: [
-      {
-        term: "active_customer",
-        source: "Salesforce Production",
-        object: "Account",
-        fields: {
-          id: "Id",
-          name: "Name",
-          email: "Email",
-          is_active: "Active__c = true AND Status__c != 'Churned'",
-        },
-      },
-      {
-        term: "opportunity_value",
-        source: "Salesforce Production",
-        object: "Opportunity",
-        fields: {
-          amount: "Amount",
-          stage: "StageName",
-          customer_id: "AccountId",
-        },
-      },
-    ],
-  },
-  definitions: [
-    {
-      term: "active_customer",
-      definition: "A customer who has made a purchase within the last 12 months and has an active account status.",
-      category: "Customer",
-      owner: "Sarah Johnson",
-    },
-    {
-      term: "opportunity_value",
-      definition: "The total monetary value of a sales opportunity, including all line items and potential revenue.",
-      category: "Sales",
-      owner: "Mike Chen",
-    },
-  ],
-  executionTime: 245,
-  recordCount: 3,
-}
+// No mock response; use real API results
 
 interface SavedQuery {
   id: string
@@ -121,7 +47,7 @@ interface SavedQuery {
 export function QueryBuilderInterface() {
   const [query, setQuery] = useState(sampleQuery)
   const [isExecuting, setIsExecuting] = useState(false)
-  const [results, setResults] = useState<typeof mockResponse | null>(null)
+  const [results, setResults] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [parsedQuery, setParsedQuery] = useState<any>(null)
   const [termsById, setTermsById] = useState<Record<string, string>>({})
@@ -140,6 +66,8 @@ export function QueryBuilderInterface() {
   const [queryCategory, setQueryCategory] = useState("reporting")
   const [queryTags, setQueryTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
+  const [availableTerms, setAvailableTerms] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedTermIds, setSelectedTermIds] = useState<string[]>([])
 
   // Load saved queries on component mount
   useEffect(() => {
@@ -154,6 +82,21 @@ export function QueryBuilderInterface() {
       }
     } catch {}
   }, [])
+
+  // Load terms list for associating to saved query
+  useEffect(() => {
+    fetch(buildApiUrl(API_CONFIG.endpoints.terms))
+      .then(r => r.ok ? r.json() : [])
+      .then((ts: any[]) => setAvailableTerms((ts || []).map(t => ({ id: t.id, name: t.name || t.id }))))
+      .catch(() => setAvailableTerms([]))
+  }, [])
+
+  // Prefill selected terms if editing existing saved query
+  useEffect(() => {
+    if (isSaveDialogOpen) {
+      setSelectedTermIds(Array.isArray((currentQuery as any)?.termIds) ? ((currentQuery as any).termIds as string[]) : [])
+    }
+  }, [isSaveDialogOpen])
 
   // Load terms for display mapping (termId -> term name)
   useEffect(() => {
@@ -279,7 +222,9 @@ export function QueryBuilderInterface() {
         created_by: 'user',
         execution_count: 0,
         avg_execution_time: 0,
-        is_favorite: false
+        is_favorite: false,
+        // store selected terms for context
+        ...(selectedTermIds.length ? { termIds: selectedTermIds } as any : {})
       }
 
       const response = await fetch(buildApiUrl(API_CONFIG.endpoints.queries), {
@@ -338,7 +283,7 @@ export function QueryBuilderInterface() {
 
   const toggleFavorite = async (savedQuery: SavedQuery) => {
     try {
-      const response = await fetch(`http://localhost:3001/queries/${savedQuery.id}`, {
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.query(savedQuery.id)), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -381,12 +326,15 @@ export function QueryBuilderInterface() {
       setParsedQuery(queryObj)
 
       // Call the real backend API
+      // include queryId if available to merge term definitions
+      const body: any = { ...queryObj }
+      if (currentQuery?.id) body.queryId = currentQuery.id
       const response = await fetch(buildApiUrl(API_CONFIG.endpoints.execute), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(queryObj),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -398,9 +346,8 @@ export function QueryBuilderInterface() {
 
       // Transform the response to match our expected format
       const derivedSources = [{
-        name: queryObj.sourceId || "postgres",
-        type: queryObj.sourceId === "postgres" ? "PostgreSQL" :
-              queryObj.sourceId === "salesforce_demo" ? "Salesforce" : "REST API",
+        name: queryObj.sourceId || "unknown",
+        type: 'unknown',
         objects: [queryObj.object || "unknown"],
         fields: queryObj.select || []
       }]
@@ -414,7 +361,7 @@ export function QueryBuilderInterface() {
         }, {})
       }]
 
-      const executionTime = data.execution?.time || data.executionTime || Math.floor(Math.random() * 500) + 100
+      const executionTime = data.execution?.time || data.executionTime || 0
       const rowsCandidate: any = data.data?.results || data.rows || data
       const recordCount = Array.isArray(rowsCandidate) ? rowsCandidate.length : rowsCandidate ? 1 : 0
 

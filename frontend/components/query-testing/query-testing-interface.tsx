@@ -1,106 +1,131 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, RotateCcw, Copy, Download, Clock, CheckCircle, AlertCircle, Zap, Database, TrendingUp, Code, Eye } from "lucide-react"
+import { Play, RotateCcw, Copy, Download, Clock, CheckCircle, AlertCircle, Zap, Database, TrendingUp, Code, Eye, Save } from "lucide-react"
 import { QueryResultsDisplay } from "../query-builder/query-builder-results"
 import { LineageVisualization } from "../query-builder/lineage-visualization"
 import { DefinitionsDisplay } from "../query-builder/definitions-display"
 import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Server } from "lucide-react"
 
 const sampleQuery = `{
   "object": "customers",
   "select": ["id", "name", "region", "is_active"],
   "limit": 5,
-  "sourceId": "postgres"
+  "sourceId": "postgres_v1"
 }`
 
-// Mock response data
-const mockResponse = {
-  data: [
-    {
-      "active_customer.id": "001",
-      "active_customer.name": "Acme Corp",
-      "active_customer.email": "contact@acme.com",
-      "opportunity_value.amount": 25000,
-      "opportunity_value.stage": "Negotiation",
-    },
-    {
-      "active_customer.id": "002",
-      "active_customer.name": "TechStart Inc",
-      "active_customer.email": "hello@techstart.com",
-      "opportunity_value.amount": 15000,
-      "opportunity_value.stage": "Proposal",
-    },
-    {
-      "active_customer.id": "003",
-      "active_customer.name": "Global Solutions",
-      "active_customer.email": "info@globalsolutions.com",
-      "opportunity_value.amount": 50000,
-      "opportunity_value.stage": "Closed Won",
-    },
-  ],
-  lineage: {
-    sources: [
-      {
-        name: "Salesforce Production",
-        type: "REST",
-        objects: ["Account", "Opportunity"],
-        fields: ["Id", "Name", "Email", "Active__c", "Amount", "StageName"],
-      },
-    ],
-    mappings: [
-      {
-        term: "active_customer",
-        source: "Salesforce Production",
-        object: "Account",
-        fields: {
-          id: "Id",
-          name: "Name",
-          email: "Email",
-          is_active: "Active__c = true AND Status__c != 'Churned'",
-        },
-      },
-      {
-        term: "opportunity_value",
-        source: "Salesforce Production",
-        object: "Opportunity",
-        fields: {
-          amount: "Amount",
-          stage: "StageName",
-          customer_id: "AccountId",
-        },
-      },
-    ],
-  },
-  definitions: [
-    {
-      term: "active_customer",
-      definition: "A customer who has made a purchase within the last 12 months and has an active account status.",
-      category: "Customer",
-      owner: "Sarah Johnson",
-    },
-    {
-      term: "opportunity_value",
-      definition: "The total monetary value of a sales opportunity, including all line items and potential revenue.",
-      category: "Sales",
-      owner: "Mike Chen",
-    },
-  ],
-  executionTime: 245,
-  recordCount: 3,
-}
+// No mock response; use live API results
 
 export function QueryBuilderInterface() {
   const [query, setQuery] = useState(sampleQuery)
   const [isExecuting, setIsExecuting] = useState(false)
-  const [results, setResults] = useState<typeof mockResponse | null>(null)
+  const [results, setResults] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const [includeTermContext, setIncludeTermContext] = useState(true)
+  const [showSave, setShowSave] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [saveDescription, setSaveDescription] = useState('')
+  const [availableTerms, setAvailableTerms] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedTermIds, setSelectedTermIds] = useState<string[]>([])
+  const [sourcesMap, setSourcesMap] = useState<Record<string, { name: string; kind: string }>>({})
+  const [sourcesList, setSourcesList] = useState<Array<{ id: string; name: string; kind: string }>>([])
+
+  // Load query passed from Saved Queries
+  useEffect(() => {
+    try {
+      const preload = sessionStorage.getItem('QB_LOAD_QUERY')
+      const preloadId = sessionStorage.getItem('QB_LOAD_QUERY_ID')
+      if (preload) setQuery(preload)
+      if (preloadId) {
+        setSavedId(preloadId)
+        // Prefill saved query metadata
+        fetch(buildApiUrl(API_CONFIG.endpoints.query(preloadId)))
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setSaveName(data.name || '')
+              setSaveDescription(data.description || '')
+              if (Array.isArray(data.termIds)) setSelectedTermIds(data.termIds)
+            }
+          })
+          .catch(() => {})
+      }
+      // Clear after load
+      sessionStorage.removeItem('QB_LOAD_QUERY')
+      sessionStorage.removeItem('QB_LOAD_QUERY_ID')
+    } catch {}
+  }, [])
+
+  // Load terms list for association
+  useEffect(() => {
+    fetch(buildApiUrl(API_CONFIG.endpoints.terms))
+      .then(r => r.ok ? r.json() : [])
+      .then((ts: any[]) => setAvailableTerms((ts || []).map(t => ({ id: t.id, name: t.name || t.id }))))
+      .catch(() => setAvailableTerms([]))
+  }, [])
+
+  // Load sources list for display
+  useEffect(() => {
+    fetch(buildApiUrl(API_CONFIG.endpoints.sources))
+      .then(r => r.ok ? r.json() : [])
+      .then((ss: any[]) => {
+        const map: Record<string, { name: string; kind: string }>= {}
+        ;(ss || []).forEach((s: any) => { map[s.id] = { name: s.name || s.id, kind: s.kind || 'unknown' } })
+        setSourcesMap(map)
+      })
+      .catch(() => setSourcesMap({}))
+  }, [])
+
+  // Auto-suggest terms on save open based on query fields
+  useEffect(() => {
+    if (!showSave) return
+    try {
+      const q = JSON.parse(query)
+      const fields: string[] = Array.isArray(q.select) ? q.select : []
+      const norm = (s: string) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')
+      const fieldSig = norm(fields.join('_') + '_' + (q.object || ''))
+      const suggested = availableTerms
+        .filter(t => fieldSig.includes(norm(t.name)))
+        .map(t => t.id)
+      if (suggested.length) {
+        setSelectedTermIds(prev => Array.from(new Set([...prev, ...suggested])))
+      }
+    } catch {}
+  }, [showSave])
+
+  const currentSourceInfo = () => {
+    try {
+      const q = JSON.parse(query)
+      const sid = q?.sourceId as string | undefined
+      if (!sid) return null
+      const meta = sourcesMap[sid]
+      return { id: sid, name: meta?.name || sid, kind: meta?.kind || 'unknown' }
+    } catch { return null }
+  }
+
+  const currentSourceId = (): string => {
+    try { return JSON.parse(query)?.sourceId ?? '' } catch { return '' }
+  }
+  const setCurrentSourceId = (sid: string) => {
+    try {
+      const obj = JSON.parse(query)
+      obj.sourceId = sid
+      setQuery(JSON.stringify(obj, null, 2))
+    } catch {}
+  }
 
   const executeQuery = async () => {
     setIsExecuting(true)
@@ -111,12 +136,14 @@ export function QueryBuilderInterface() {
       const queryObj = JSON.parse(query)
 
       // Call the real backend API
+      const body: any = { ...queryObj }
+      if (includeTermContext && savedId) body.queryId = savedId
       const response = await fetch(buildApiUrl(API_CONFIG.endpoints.execute), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(queryObj),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -127,13 +154,18 @@ export function QueryBuilderInterface() {
       const data = await response.json()
 
       // Transform the response to match our expected format
+      const rows = Array.isArray((data as any)?.data)
+        ? (data as any).data
+        : (Array.isArray(data as any)
+            ? (data as any)
+            : (Array.isArray((data as any)?.rows) ? (data as any).rows : []))
       const transformedResponse = {
-        data: data.data?.results || data.rows || data,
+        data: rows,
         lineage: {
           sources: [{
-            name: queryObj.sourceId || "postgres",
-            type: queryObj.sourceId === "postgres" ? "PostgreSQL" :
-                  queryObj.sourceId === "salesforce_demo" ? "Salesforce" : "REST API",
+            name: queryObj.sourceId || "postgres_v1",
+            type: String(queryObj.sourceId || '').startsWith('postgres') ? "PostgreSQL" :
+                  String(queryObj.sourceId || '').includes('salesforce') ? "Salesforce" : "REST API",
             objects: [queryObj.object || "unknown"],
             fields: queryObj.select || []
           }],
@@ -153,8 +185,8 @@ export function QueryBuilderInterface() {
           category: info.category || 'Unknown',
           owner: info.owner || 'Unknown'
         })) : [],
-        executionTime: data.executionTime || Math.floor(Math.random() * 500) + 100,
-        recordCount: Array.isArray(data.rows || data) ? (data.rows || data).length : (data.rows || data) ? 1 : 0
+        executionTime: (data as any).executionTime || Math.floor(Math.random() * 500) + 100,
+        recordCount: Array.isArray(rows) ? rows.length : 0
       }
 
       setResults(transformedResponse)
@@ -185,6 +217,29 @@ export function QueryBuilderInterface() {
       a.download = "query-results.json"
       a.click()
       URL.revokeObjectURL(url)
+    }
+  }
+
+  const saveQuery = async () => {
+    try {
+      const queryObj = JSON.parse(query)
+      const payload = {
+        name: saveName || 'New Query',
+        description: saveDescription || '',
+        tags: [],
+        dataSourceId: queryObj.sourceId,
+        termIds: selectedTermIds,
+        query: queryObj
+      }
+      const endpoint = savedId ? API_CONFIG.endpoints.query(savedId) : API_CONFIG.endpoints.queries
+      const method = savedId ? 'PUT' : 'POST'
+      const res = await fetch(buildApiUrl(endpoint), { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (!res.ok) throw new Error(`Failed to save query (${res.status})`)
+      const data = await res.json()
+      setSavedId(data.id)
+      setShowSave(false)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to save query')
     }
   }
 
@@ -219,7 +274,7 @@ export function QueryBuilderInterface() {
             <code className="block bg-blue-100 dark:bg-blue-900 px-3 py-2 rounded text-xs font-mono">
               {`{ "object": "table_name", "select": ["field1", "field2"], "limit": 10, "sourceId": "source_id" }`}
             </code>
-            <p className="mt-2">Available sources: postgres, salesforce_demo, source_1757613216920 (REST API)</p>
+            <p className="mt-2">Available sources: postgres_v1, openfda_v1 (REST API)</p>
           </div>
         </div>
       </div>
@@ -231,6 +286,10 @@ export function QueryBuilderInterface() {
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500/10 rounded-lg">
                 <Code className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox checked={includeTermContext} onCheckedChange={(c) => setIncludeTermContext(!!c)} />
+                <span>Include term context (use saved query associations)</span>
               </div>
               <div>
                 <CardTitle className="text-slate-900 dark:text-slate-100">Semantic Query</CardTitle>
@@ -251,12 +310,113 @@ export function QueryBuilderInterface() {
               </div>
             </div>
 
+            {/* Current source selector */}
+            <div className="text-xs text-muted-foreground flex items-center gap-2">
+              <Server className="h-3.5 w-3.5" />
+              <span>Source:</span>
+              <Select value={currentSourceId()} onValueChange={setCurrentSourceId}>
+                <SelectTrigger className="h-7 px-2 py-1">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(sourcesMap).map(([id, meta]) => (
+                    <SelectItem key={id} value={id}>
+                      {(meta as any).name} ({(meta as any).kind})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
                 <Button onClick={executeQuery} disabled={isExecuting || !query.trim()}>
                   <Play className={`h-4 w-4 mr-2 ${isExecuting ? "animate-pulse" : ""}`} />
                   {isExecuting ? "Executing..." : "Run Query"}
                 </Button>
+                <Dialog open={showSave} onOpenChange={setShowSave}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Save className="h-4 w-4 mr-2" />
+                      {savedId ? 'Update' : 'Save'} Query
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{savedId ? 'Update Saved Query' : 'Save Query'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="qname">Name</Label>
+                        <Input id="qname" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="New Query" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="qdesc">Description</Label>
+                        <Input id="qdesc" value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} placeholder="Optional" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Associate Business Terms</Label>
+                        <div className="max-h-40 overflow-auto border rounded p-2 space-y-2">
+                          {availableTerms.map(t => (
+                            <label key={t.id} className="flex items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={selectedTermIds.includes(t.id)}
+                                onCheckedChange={(c) => {
+                                  setSelectedTermIds(prev => c ? Array.from(new Set([...prev, t.id])) : prev.filter(id => id !== t.id))
+                                }}
+                              />
+                              {t.name}
+                            </label>
+                          ))}
+                          {availableTerms.length === 0 && (
+                            <div className="text-xs text-muted-foreground">No terms found.</div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="newTermName">New term name</Label>
+                            <Input id="newTermName" value={newTermName} onChange={e => setNewTermName(e.target.value)} placeholder="e.g. Active User" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="newTermDesc">Description</Label>
+                            <Input id="newTermDesc" value={newTermDesc} onChange={e => setNewTermDesc(e.target.value)} placeholder="Optional" />
+                          </div>
+                        </div>
+                        <div>
+                          <Button
+                            variant="outline"
+                            disabled={creatingTerm || !newTermName.trim()}
+                            onClick={async () => {
+                              try {
+                                setCreatingTerm(true)
+                                const res = await fetch(buildApiUrl(API_CONFIG.endpoints.terms), {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ name: newTermName, description: newTermDesc })
+                                })
+                                if (!res.ok) throw new Error('Failed to create term')
+                                const t = await res.json()
+                                setAvailableTerms(prev => [...prev, { id: t.id, name: t.name || t.id }])
+                                setSelectedTermIds(prev => Array.from(new Set([...prev, t.id])))
+                                setNewTermName('')
+                                setNewTermDesc('')
+                              } catch (e) {
+                                alert(e instanceof Error ? e.message : 'Failed to create term')
+                              } finally {
+                                setCreatingTerm(false)
+                              }
+                            }}
+                          >
+                            Create & Select
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={saveQuery}>{savedId ? 'Update' : 'Save'}</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <Button variant="outline" onClick={resetQuery}>
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Reset
@@ -268,11 +428,109 @@ export function QueryBuilderInterface() {
               </div>
 
               {results && (
-                <Button variant="outline" onClick={downloadResults}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={downloadResults}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                  <Dialog open={genRuleOpen} onOpenChange={setGenRuleOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">Generate Mapping Rule</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Generate Mapping Rule from Result</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label>Map to Business Term</Label>
+                          <Select value={genRuleTermId} onValueChange={setGenRuleTermId}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select term" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableTerms.map(t => (
+                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="genNewTermName">New term name</Label>
+                            <Input id="genNewTermName" value={newRuleTermName} onChange={e => setNewRuleTermName(e.target.value)} placeholder="e.g. Active Customer" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="genNewTermDesc">Description</Label>
+                            <Input id="genNewTermDesc" value={newRuleTermDesc} onChange={e => setNewRuleTermDesc(e.target.value)} placeholder="Optional" />
+                          </div>
+                        </div>
+                        <div>
+                          <Button
+                            variant="outline"
+                            disabled={creatingRuleTerm || !newRuleTermName.trim()}
+                            onClick={async () => {
+                              try {
+                                setCreatingRuleTerm(true)
+                                const res = await fetch(buildApiUrl(API_CONFIG.endpoints.terms), {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ name: newRuleTermName, description: newRuleTermDesc })
+                                })
+                                if (!res.ok) throw new Error('Failed to create term')
+                                const t = await res.json()
+                                setAvailableTerms(prev => [...prev, { id: t.id, name: t.name || t.id }])
+                                setGenRuleTermId(t.id)
+                                setNewRuleTermName('')
+                                setNewRuleTermDesc('')
+                              } catch (e) {
+                                alert(e instanceof Error ? e.message : 'Failed to create term')
+                              } finally {
+                                setCreatingRuleTerm(false)
+                              }
+                            }}
+                          >
+                            Create & Select
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Fields and object are inferred from the query.</div>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          onClick={async () => {
+                            try {
+                              const qobj = JSON.parse(query)
+                              const fields: string[] = Array.isArray(qobj.select) ? qobj.select : []
+                              const sourceId = qobj.sourceId
+                              const object = qobj.object
+                              if (!genRuleTermId || !sourceId || !object || !fields.length) throw new Error('Missing inputs')
+                              const expression = Array.isArray(qobj.where) && qobj.where.length
+                                ? qobj.where.map((w: any) => `${w.field} ${w.op} ${w.value}`).join(' AND ')
+                                : ''
+                              const fieldMappings = Object.fromEntries(fields.map((f: string) => [f, f]))
+                              const payload = { termId: genRuleTermId, sourceId, object, expression, fields, fieldMappings }
+                              const res = await fetch(buildApiUrl(API_CONFIG.endpoints.rules), {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                              })
+                              if (!res.ok) throw new Error('Failed to save rule')
+                              setGenRuleOpen(false)
+                            } catch (e) {
+                              alert(e instanceof Error ? e.message : 'Failed to generate rule')
+                            }
+                          }}
+                        >
+                          Create Rule
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox checked={includeTermContext} onCheckedChange={(c) => setIncludeTermContext(!!c)} />
+              <span>Include term context (use saved query associations)</span>
             </div>
 
             {error && (

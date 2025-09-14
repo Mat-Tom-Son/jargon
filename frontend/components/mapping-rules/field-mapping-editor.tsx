@@ -23,6 +23,7 @@ interface FieldMappingEditorProps {
   objectName: string
   fieldMappings: FieldMapping[]
   onFieldMappingsChange: (mappings: FieldMapping[]) => void
+  concreteFields?: string[]
 }
 
 // Mock semantic fields based on term - organized by category
@@ -72,7 +73,7 @@ const getSemanticFields = (termName: string) => {
   ]
 }
 
-// Mock concrete fields based on object
+// Mock concrete fields based on object (fallback when discovery is unavailable)
 const getConcreteFields = (objectName: string) => {
   const fieldMap: Record<string, string[]> = {
     Account: ["Id", "Name", "Type", "Industry", "AnnualRevenue", "CreatedDate", "Active__c", "Status__c"],
@@ -94,11 +95,14 @@ export function FieldMappingEditor({
   objectName,
   fieldMappings,
   onFieldMappingsChange,
+  concreteFields: concreteFieldsProp,
 }: FieldMappingEditorProps) {
   const [newSemanticField, setNewSemanticField] = useState("")
   const semanticFields = getSemanticFields(termName)
   const semanticFieldNames = semanticFields.map(field => field.name)
-  const concreteFields = getConcreteFields(objectName)
+  const concreteFields = (concreteFieldsProp && concreteFieldsProp.length)
+    ? concreteFieldsProp
+    : getConcreteFields(objectName)
 
   const addFieldMapping = (semanticField?: string) => {
     const field = semanticField || newSemanticField.trim()

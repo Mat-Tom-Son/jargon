@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/term.schema.json",
+  "title": "Business Term",
+  "type": "object",
+  "required": ["id", "name"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable, namespaced ID",
+      "pattern": "^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$"
+    },
+    "name": { "type": "string" },
+    "domain": { "type": "string", "description": "e.g., Finance, Sales" },
+    "businessDefinition": { "type": "string" },
+    "description": { "type": "string" },
+    "owner": { "type": "string" },
+    "synonyms": { "type": "array", "items": { "type": "string" } },
+    "grain": { "type": "string", "description": "Record grain, e.g., customer, order_day" },
+    "units": { "type": "string", "description": "e.g., USD, count, %" },
+    "defaultWindow": { "type": "string", "description": "e.g., last_90d" },
+    "caveats": { "type": "string" },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "required": { "type": "boolean" },
+          "default": {},
+          "allowed": { "type": "array", "items": {} }
+        },
+        "required": ["name", "type"]
+      }
+    },
+    "assumptions": { "type": "array", "items": { "type": "string" } },
+    "governance": {
+      "type": "object",
+      "properties": {
+        "requiresApproval": { "type": "boolean" },
+        "reviewCycle": { "type": "string", "enum": ["monthly", "quarterly", "biannual", "annual"] },
+        "dataSteward": { "type": "string" },
+        "deprecation": {
+          "type": "object",
+          "properties": {
+            "deprecated": { "type": "boolean" },
+            "sunsetDate": { "type": "string", "format": "date" },
+            "replacementId": { "type": "string" }
+          }
+        }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "description": "Output contracts for this term",
+      "items": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "schemaRef": { "type": "string", "description": "Path to JSON Schema" },
+          "required": { "type": "array", "items": { "type": "string" } },
+          "optional": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["version", "schemaRef"]
+      }
+    },
+    "materialization": {
+      "type": "object",
+      "properties": {
+        "preferred": { "type": "string", "enum": ["live", "cached"] },
+        "notes": { "type": "string" }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}
+

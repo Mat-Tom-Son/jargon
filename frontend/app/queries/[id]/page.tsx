@@ -7,21 +7,39 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { buildApiUrl, API_CONFIG } from "@/lib/api-config"
-import { Database, Clock, Play, ArrowLeft } from "lucide-react"
+import { Database, Clock, Play, ArrowLeft, Save } from "lucide-react"
 import Link from "next/link"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Button as UIButton } from "@/components/ui/button"
 
 export default function SavedQueryDetailPage({ params }: { params: { id: string } }) {
   const id = params.id
   const [q, setQ] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [termsMap, setTermsMap] = useState<Record<string, string>>({})
+  const [availableTerms, setAvailableTerms] = useState<Array<{id:string;name:string}>>([])
+  const [selectedTermIds, setSelectedTermIds] = useState<string[]>([])
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.query(id)}`)
-        if (!res.ok) return
-        const data = await res.json()
-        setQ(data)
+        const [qr, tr] = await Promise.all([
+          fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.query(id)}`),
+          fetch(buildApiUrl(API_CONFIG.endpoints.terms))
+        ])
+        if (qr.ok) {
+          const data = await qr.json()
+          setQ(data)
+          setSelectedTermIds(Array.isArray(data.termIds) ? data.termIds : [])
+        }
+        if (tr.ok) {
+          const ts = await tr.json()
+          const m: Record<string, string> = {}
+          ts.forEach((t: any) => { m[t.id] = t.name || t.id })
+          setTermsMap(m)
+          setAvailableTerms(ts.map((t: any) => ({ id: t.id, name: t.name || t.id })))
+        }
       } finally {
         setLoading(false)
       }
@@ -33,6 +51,7 @@ export default function SavedQueryDetailPage({ params }: { params: { id: string 
     if (!q?.query) return
     try {
       sessionStorage.setItem('QB_LOAD_QUERY', JSON.stringify(q.query))
+      sessionStorage.setItem('QB_LOAD_QUERY_ID', q.id)
       window.location.href = '/test'
     } catch {}
   }
@@ -75,6 +94,13 @@ export default function SavedQueryDetailPage({ params }: { params: { id: string 
                       ))}
                     </div>
                   )}
+                  {Array.isArray(q.termIds) && q.termIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {q.termIds.map((tid: string) => (
+                        <Badge key={tid} variant="secondary" className="text-xs">{termsMap[tid] || tid}</Badge>
+                      ))}
+                    </div>
+                  )}
                   <div>
                     <div className="text-sm font-medium mb-1">Query JSON</div>
                     <pre className="text-xs font-mono bg-muted p-3 rounded overflow-auto max-h-80">{JSON.stringify(q.query, null, 2)}</pre>
@@ -97,6 +123,44 @@ export default function SavedQueryDetailPage({ params }: { params: { id: string 
                       <div className="text-xs text-muted-foreground">No runs yet.</div>
                     )}
                   </div>
+                  <div className="mt-4">
+                    <div className="text-sm font-medium mb-2">Associate Business Terms</div>
+                    <div className="max-h-48 overflow-auto border rounded p-2 space-y-2">
+                      {availableTerms.map(t => (
+                        <label key={t.id} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={selectedTermIds.includes(t.id)}
+                            onCheckedChange={(c) => {
+                              setSelectedTermIds(prev => c ? Array.from(new Set([...prev, t.id])) : prev.filter(id => id !== t.id))
+                            }}
+                          />
+                          {t.name}
+                        </label>
+                      ))}
+                      {availableTerms.length === 0 && (
+                        <div className="text-xs text-muted-foreground">No terms found.</div>
+                      )}
+                    </div>
+                    <div className="mt-2">
+                      <UIButton
+                        size="sm"
+                        onClick={async () => {
+                          if (!q) return
+                          const res = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.query(q.id)}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ termIds: selectedTermIds })
+                          })
+                          if (res.ok) {
+                            const updated = await res.json()
+                            setQ(updated)
+                          }
+                        }}
+                      >
+                        <Save className="h-4 w-4 mr-2" /> Save Associations
+                      </UIButton>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </>
@@ -108,5 +172,3 @@ export default function SavedQueryDetailPage({ params }: { params: { id: string 
     </div>
   )
 }
-
-

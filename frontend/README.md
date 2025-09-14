@@ -92,6 +92,8 @@ npm start
 # .env.local
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_APP_ENV=development
+# Optional: admin auth for config update (matches gateway ADMIN_API_TOKEN)
+# NEXT_PUBLIC_ADMIN_API_TOKEN=your_admin_token
 ```
 
 ## 🎨 **Design System**

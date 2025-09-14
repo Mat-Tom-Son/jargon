@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/source.schema.json",
+  "title": "DataSourceRef (Extended)",
+  "type": "object",
+  "required": ["id", "name", "kind", "config"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_\-\.]+$" },
+    "name": { "type": "string" },
+    "kind": { "type": "string", "enum": ["salesforce", "rest", "sql"] },
+    "environment": { "type": "string" },
+    "status": { "type": "string", "enum": ["active", "inactive", "deprecated"] },
+    "owner": { "type": "string", "description": "Team/email owning the source" },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["oauth2", "apiKey", "basic", "none"] },
+        "scopes": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "config": { "type": "object", "additionalProperties": true },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "joins": { "type": "boolean" },
+        "serverFilters": { "type": "boolean" },
+        "pagination": { "type": "boolean" },
+        "maxLimit": { "type": "integer", "minimum": 1 },
+        "operators": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "sla": {
+      "type": "object",
+      "properties": {
+        "rpoMinutes": { "type": "integer", "minimum": 0 },
+        "rtoMinutes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "timezone": { "type": "string", "description": "IANA TZ, e.g., America/Los_Angeles" },
+    "fiscalCalendar": { "type": "string", "description": "e.g., Q1 starts Feb 1" },
+    "latencyHints": {
+      "type": "object",
+      "properties": {
+        "p50Ms": { "type": "number" },
+        "p95Ms": { "type": "number" },
+        "notes": { "type": "string" }
+      }
+    },
+    "costHints": {
+      "type": "object",
+      "properties": {
+        "approxUsdPerKRows": { "type": "number" },
+        "notes": { "type": "string" }
+      }
+    },
+    "schemaSnapshots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "capturedAt": { "type": "string", "format": "date-time" },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string" },
+                      "type": { "type": "string" },
+                      "nullable": { "type": "boolean" },
+                      "isPK": { "type": "boolean" }
+                    },
+                    "required": ["name", "type", "nullable"]
+                  }
+                }
+              },
+              "required": ["name", "fields"]
+            }
+          }
+        },
+        "required": ["capturedAt", "objects"]
+      }
+    },
+    "metadata": { "type": "object", "additionalProperties": true },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}
+

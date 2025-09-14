@@ -37,7 +37,9 @@ export class Compiler {
         select,
         where,
         orderBy: q.orderBy ?? { field: select[0], direction: 'ASC' as const },
-        limit
+        limit,
+        // Pass-through params for connectors that support custom querystrings
+        ...(q as any).params ? { params: (q as any).params } : {}
       };
       const operators = Array.from(new Set(where.map(w => w.op)));
       const concreteFields = this.extractFieldsFromMappings(Object.values(rule.fieldMappings));

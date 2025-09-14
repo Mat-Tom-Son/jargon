@@ -4,5 +4,8 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "node -r ts-node/register test/compiler.basic.ts"
+  },
   "dependencies": {}
 }

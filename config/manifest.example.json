@@ -1,0 +1,51 @@
+{
+  "$schema": "https://example.com/schemas/semantic-manifest.schema.json",
+  "version": "0.1",
+  "generatedAt": "2025-09-13T00:00:00.000Z",
+  "organization": "example-co",
+  "timezone": "America/Los_Angeles",
+  "fiscalCalendar": "Q1 starts Feb 1",
+  "terms": [
+    {
+      "id": "customer.active",
+      "name": "Active Customer",
+      "domain": "Sales",
+      "synonyms": ["client.active"],
+      "grain": "customer",
+      "defaultWindow": "last_90d",
+      "contracts": [
+        {
+          "version": "1.0.0",
+          "schemaRef": "schemas/terms/customer.active.v1.json"
+        }
+      ],
+      "mappings": [
+        {
+          "sourceId": "postgres_v1",
+          "object": "customers",
+          "expression": "is_active = true AND status != 'churned'",
+          "fields": ["id", "name", "region", "is_active"],
+          "fieldMappings": { "id": "id", "name": "name", "region": "region", "is_active": "is_active" },
+          "preferred": true,
+          "assumptions": ["soft-deletes excluded"],
+          "parameters": []
+        },
+        {
+          "sourceId": "salesforce_v1",
+          "object": "Account",
+          "expression": "Active__c = true",
+          "fields": ["Id", "Name", "BillingCountry"],
+          "fieldMappings": { "id": "Id", "name": "Name", "region": "BillingCountry" },
+          "preferred": false,
+          "fallback": true,
+          "assumptions": ["BillingCountry approximates region"],
+          "parameters": []
+        }
+      ]
+    }
+  ],
+  "lineageRefs": [
+    { "queryId": "query_customer_summary_v1", "sourceId": "postgres_v1" }
+  ]
+}
+
