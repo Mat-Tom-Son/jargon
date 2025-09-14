@@ -7,8 +7,21 @@ const fetch = require('node-fetch');
 const auth = require('./src/middleware/auth');
 
 const app = express();
-app.use(cors());
+
+// Demo-safe CORS policy
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true
+}));
+
 app.use(express.json());
+
+// POC Environment Warning
+if (process.env.NODE_ENV === 'production') {
+  console.warn('🚨 WARNING: This appears to be a production environment');
+  console.warn('🚨 This code is for POC/Demo purposes only');
+  console.warn('🚨 Please implement proper security measures');
+}
 
 // Configuration file paths
 const CONFIG_DIR = path.join(__dirname, '../../config/data');

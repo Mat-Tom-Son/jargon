@@ -28,6 +28,18 @@ Every AI tool or chatbot needs custom integration code, authentication handling,
 - **AI-Ready**: Clean, normalized data perfect for LLM context and chatbot integration
 - **Semantic Debt Tracking**: Monitor and reduce the hidden costs of unclear terminology
 
+## ⚠️ Security Notice
+
+**This is a POC/Demo environment** with:
+- Default credentials (`admin/admin`, `demo/demo`, `guest/guest`)
+- Minimal input validation
+- Demo-safe CORS policy
+- No encryption at rest
+
+**DO NOT use in production without proper security hardening.**
+
+For production deployment, see [Production Security Guide](docs/PRODUCTION_SECURITY.md).
+
 ## Quick Start
 
 ```bash

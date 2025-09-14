@@ -3,11 +3,18 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Default users (change in production)
+// POC ONLY - Default users (change in production)
 const users = {
-  admin: { password: 'admin', role: 'admin' },
-  user: { password: 'user', role: 'user' }
+  admin: { password: 'admin', role: 'admin' }, // POC ONLY - Change in production
+  demo: { password: 'demo', role: 'user' },    // Demo user for presentations
+  guest: { password: 'guest', role: 'readonly' } // Read-only access
 };
+
+// Security warning for production environments
+if (process.env.NODE_ENV === 'production') {
+  console.warn('🚨 WARNING: Using default credentials in production environment');
+  console.warn('🚨 This auth system is for POC/Demo purposes only');
+}
 
 // Login endpoint
 const login = (req, res) => {
