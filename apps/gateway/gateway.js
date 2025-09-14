@@ -4,6 +4,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const auth = require('./src/middleware/auth');
 
 const app = express();
 app.use(cors());
@@ -211,6 +212,10 @@ app.get('/whoami', (req, res) => {
     pid: process.pid
   })
 })
+
+// Authentication endpoints
+app.post('/auth/login', auth.login);
+app.get('/auth/verify', auth.verify);
 
 // Get sources from file
 app.get('/sources', (req, res) => {
